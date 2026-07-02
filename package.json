@@ -1,0 +1,49 @@
+{
+  "name": "@utkarshpayal/logsense-sdk",
+  "version": "2.0.0",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "rimraf dist && tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx tests/verification.ts",
+    "test:v1": "tsx tests/v1-features.ts",
+    "test:express": "tsx tests/express-middleware.ts",
+    "demo": "tsx tests/demo-app.ts",
+    "simulate": "tsx tests/simulation.ts",
+    "clean": "rimraf dist"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "LogSense Node.js SDK — automatic observability for Node.js applications.",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./express": {
+      "types": "./dist/middleware/index.d.ts",
+      "import": "./dist/middleware/index.js",
+      "default": "./dist/middleware/index.js"
+    }
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "nanoid": "^5.1.16"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.3",
+    "@types/node": "^26.1.0",
+    "eslint": "^10.6.0",
+    "prettier": "^3.9.4",
+    "rimraf": "^6.1.3",
+    "tsx": "^4.22.4",
+    "typescript": "^6.0.3"
+  }
+}
