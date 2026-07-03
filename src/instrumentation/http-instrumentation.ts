@@ -1,7 +1,7 @@
 import http from "node:http";
 import { generateId } from "../utils/id";
 import { omitUndefined } from "../utils/object";
-import { EventCategory, EventStatus, Severity } from "../event/constants";
+import { EventCategory, EventStatus, Severity, ActorType } from "../event/constants";
 import { Collector } from "../collector/collector";
 import { contextStore } from "../context/context-store";
 import { contextManager } from "../context/context-manager";
@@ -54,6 +54,43 @@ export class HttpServerInstrumentation {
             const traceId = (req.headers["x-trace-id"] as string) || generateId();
             const parentEventId = req.headers["x-span-id"] as string;
 
+            // Parse query parameters
+            let query: any = undefined;
+            if (req.url) {
+                try {
+                    const parsedUrl = new URL(req.url, "http://localhost");
+                    const qObj: Record<string, string> = {};
+                    parsedUrl.searchParams.forEach((val, key) => {
+                        qObj[key] = val;
+                    });
+                    if (Object.keys(qObj).length > 0) {
+                        query = qObj;
+                    }
+                } catch (e) {
+                    const parts = req.url.split("?");
+                    if (parts.length > 1) {
+                        const qObj: Record<string, string> = {};
+                        const params = new URLSearchParams(parts[1]);
+                        params.forEach((val, key) => {
+                            qObj[key] = val;
+                        });
+                        if (Object.keys(qObj).length > 0) {
+                            query = qObj;
+                        }
+                    }
+                }
+            }
+
+            // Safely capture headers
+            const requestHeaders: Record<string, string> = {};
+            for (const [key, val] of Object.entries(req.headers)) {
+                if (typeof val === "string") {
+                    requestHeaders[key] = val;
+                } else if (Array.isArray(val)) {
+                    requestHeaders[key] = val.join(", ");
+                }
+            }
+
             // Initialize request context
             const requestCtx = contextManager.create({
                 tenant: self.tenant,
@@ -77,12 +114,14 @@ export class HttpServerInstrumentation {
                         action: EventStatus.STARTED,
                         severity: Severity.INFO,
                         message: `Incoming Request: ${req.method} ${req.url}`,
-                        http: {
+                        http: omitUndefined({
                             method: req.method as any,
                             url: req.url || "/",
                             clientIp,
                             userAgent: req.headers["user-agent"],
-                        },
+                            headers: Object.keys(requestHeaders).length > 0 ? requestHeaders : undefined,
+                            query,
+                        }),
                     })
                     .catch((err) => {
                         if (self.debug) {
@@ -108,6 +147,49 @@ export class HttpServerInstrumentation {
                     // Read route if set by a routing framework
                     const route = requestCtx.metadata["route"] as string | undefined;
 
+                    // Safely capture request body
+                    let body: any = undefined;
+                    const anyReq = req as any;
+                    if (anyReq.body !== undefined && anyReq.body !== null) {
+                        if (Buffer.isBuffer(anyReq.body)) {
+                            body = "[Buffer]";
+                        } else if (anyReq.body.pipe && typeof anyReq.body.pipe === "function") {
+                            body = "[Stream]";
+                        } else if (typeof anyReq.body === "string") {
+                            body = anyReq.body.length > 5000 ? anyReq.body.substring(0, 5000) + "... [truncated]" : anyReq.body;
+                        } else if (typeof anyReq.body === "object") {
+                            try {
+                                const serialized = JSON.stringify(anyReq.body);
+                                if (serialized.length > 5000) {
+                                    body = `[Object too large to log, size: ${serialized.length} bytes]`;
+                                } else {
+                                    body = anyReq.body;
+                                }
+                            } catch (e) {
+                                body = "[Unserializable Object]";
+                            }
+                        } else {
+                            body = anyReq.body;
+                        }
+                    }
+
+                    // Extract actor / tenant context if set dynamically by middleware
+                    const tokenData = anyReq.tokenData || anyReq.user || anyReq.authenticatedUser;
+                    if (tokenData && typeof tokenData === "object") {
+                        if (!requestCtx.actor) {
+                            requestCtx.actor = {
+                                type: ActorType.USER,
+                                id: tokenData.id || tokenData._id || tokenData.sub,
+                                name: tokenData.name,
+                                email: tokenData.email,
+                                role: tokenData.userType || tokenData.role,
+                            };
+                        }
+                        if (tokenData.organizationId && !requestCtx.tenant.organizationId) {
+                            requestCtx.tenant.organizationId = tokenData.organizationId;
+                        }
+                    }
+
                     void self.collector
                         .collect<any>({
                             category: EventCategory.HTTP,
@@ -125,6 +207,9 @@ export class HttpServerInstrumentation {
                                 route,
                                 userAgent: req.headers["user-agent"],
                                 referer: req.headers["referer"] as string,
+                                headers: Object.keys(requestHeaders).length > 0 ? requestHeaders : undefined,
+                                query,
+                                body,
                             }) as any,
                             metadata: error
                                 ? {

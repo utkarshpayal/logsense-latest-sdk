@@ -4,6 +4,8 @@ import { LogSenseClient } from "../core/sdk.js";
 import { contextStore } from "../context/context-store.js";
 import { extractRequestId } from "../utils/request-id.js";
 import type { Metadata } from "../event/types.js";
+import { omitUndefined } from "../utils/object.js";
+import { ActorType } from "../event/constants.js";
 
 /* ─────────────────────────────────────────────────────────────
  * Express type augmentation
@@ -157,7 +159,7 @@ export function logsenseMiddleware(
                 environment: config.environment as any,
                 service: config.service ?? "",
             },
-            actor: undefined,
+            actor: undefined as any,
             metadata: { ...baseMeta } as Record<string, unknown>,
         };
 
@@ -165,13 +167,58 @@ export function logsenseMiddleware(
            any log emitted within a route handler automatically inherits the
            requestId, traceId, method, and path. */
         contextStore.run(requestContext as any, () => {
+            // Parse query parameters
+            let query: any = undefined;
+            if (req.url) {
+                try {
+                    const parsedUrl = new URL(req.url, "http://localhost");
+                    const qObj: Record<string, string> = {};
+                    parsedUrl.searchParams.forEach((val, key) => {
+                        qObj[key] = val;
+                    });
+                    if (Object.keys(qObj).length > 0) {
+                        query = qObj;
+                    }
+                } catch (e) {
+                    const parts = req.url.split("?");
+                    if (parts.length > 1) {
+                        const qObj: Record<string, string> = {};
+                        const params = new URLSearchParams(parts[1]);
+                        params.forEach((val, key) => {
+                            qObj[key] = val;
+                        });
+                        if (Object.keys(qObj).length > 0) {
+                            query = qObj;
+                        }
+                    }
+                }
+            }
+
+            // Safely capture headers
+            const requestHeaders: Record<string, string> = {};
+            for (const [key, val] of Object.entries(req.headers)) {
+                if (typeof val === "string") {
+                    requestHeaders[key] = val;
+                } else if (Array.isArray(val)) {
+                    requestHeaders[key] = val.join(", ");
+                }
+            }
+
             // Log incoming request
-            logger.info(`→ ${method} ${path}`, {
+            logger.info(`→ ${method} ${path}`, omitUndefined({
                 ...baseMeta,
                 ...(ip !== undefined ? { ip } : {}),
                 ...(userAgent !== undefined ? { userAgent } : {}),
                 event: "request.incoming",
-            });
+                http: {
+                    method,
+                    url: req.url || "/",
+                    clientIp: ip,
+                    userAgent,
+                    headers: Object.keys(requestHeaders).length > 0 ? requestHeaders : undefined,
+                    query,
+                }
+            }) as any);
 
             res.on("finish", () => {
                 const durationMs = hrToMs(process.hrtime.bigint() - startTime);
@@ -179,14 +226,67 @@ export function logsenseMiddleware(
                 const contentLength = res.getHeader("content-length");
                 const route = req.route?.path as string | undefined;
 
-                const responseMeta: Metadata = {
+                // Safely capture request body
+                let body: any = undefined;
+                if (req.body !== undefined && req.body !== null) {
+                    if (Buffer.isBuffer(req.body)) {
+                        body = "[Buffer]";
+                    } else if (req.body.pipe && typeof req.body.pipe === "function") {
+                        body = "[Stream]";
+                    } else if (typeof req.body === "string") {
+                        body = req.body.length > 5000 ? req.body.substring(0, 5000) + "... [truncated]" : req.body;
+                    } else if (typeof req.body === "object") {
+                        try {
+                            const serialized = JSON.stringify(req.body);
+                            if (serialized.length > 5000) {
+                                body = `[Object too large to log, size: ${serialized.length} bytes]`;
+                            } else {
+                                body = req.body;
+                            }
+                        } catch (e) {
+                            body = "[Unserializable Object]";
+                        }
+                    } else {
+                        body = req.body;
+                    }
+                }
+
+                // Extract actor / tenant context if set dynamically by middleware
+                const tokenData = (req as any).tokenData || (req as any).user || (req as any).authenticatedUser;
+                if (tokenData && typeof tokenData === "object") {
+                    if (!requestContext.actor) {
+                        requestContext.actor = {
+                            type: ActorType.USER,
+                            id: tokenData.id || tokenData._id || tokenData.sub,
+                            name: tokenData.name,
+                            email: tokenData.email,
+                            role: tokenData.userType || tokenData.role,
+                        };
+                    }
+                    if (tokenData.organizationId && !requestContext.tenant.organizationId) {
+                        requestContext.tenant.organizationId = tokenData.organizationId;
+                    }
+                }
+
+                const responseMeta: any = omitUndefined({
                     ...baseMeta,
                     ...(route !== undefined ? { route } : {}),
                     statusCode,
                     durationMs,
                     event: "request.completed",
                     ...(contentLength !== undefined ? { contentLength: Number(contentLength) } : {}),
-                };
+                    http: {
+                        method,
+                        url: req.url || "/",
+                        statusCode,
+                        clientIp: ip,
+                        route,
+                        userAgent,
+                        headers: Object.keys(requestHeaders).length > 0 ? requestHeaders : undefined,
+                        query,
+                        body,
+                    }
+                });
 
                 if (durationMs > slowThresholdMs) {
                     logger.warn(`⚠ Slow request: ${method} ${path} completed in ${durationMs}ms`, {

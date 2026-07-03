@@ -43,6 +43,43 @@ class HttpServerInstrumentation {
             const requestId = req.headers["x-request-id"] || (0, id_1.generateId)();
             const traceId = req.headers["x-trace-id"] || (0, id_1.generateId)();
             const parentEventId = req.headers["x-span-id"];
+            // Parse query parameters
+            let query = undefined;
+            if (req.url) {
+                try {
+                    const parsedUrl = new URL(req.url, "http://localhost");
+                    const qObj = {};
+                    parsedUrl.searchParams.forEach((val, key) => {
+                        qObj[key] = val;
+                    });
+                    if (Object.keys(qObj).length > 0) {
+                        query = qObj;
+                    }
+                }
+                catch (e) {
+                    const parts = req.url.split("?");
+                    if (parts.length > 1) {
+                        const qObj = {};
+                        const params = new URLSearchParams(parts[1]);
+                        params.forEach((val, key) => {
+                            qObj[key] = val;
+                        });
+                        if (Object.keys(qObj).length > 0) {
+                            query = qObj;
+                        }
+                    }
+                }
+            }
+            // Safely capture headers
+            const requestHeaders = {};
+            for (const [key, val] of Object.entries(req.headers)) {
+                if (typeof val === "string") {
+                    requestHeaders[key] = val;
+                }
+                else if (Array.isArray(val)) {
+                    requestHeaders[key] = val.join(", ");
+                }
+            }
             // Initialize request context
             const requestCtx = context_manager_1.contextManager.create({
                 tenant: self.tenant,
@@ -65,12 +102,14 @@ class HttpServerInstrumentation {
                     action: constants_1.EventStatus.STARTED,
                     severity: constants_1.Severity.INFO,
                     message: `Incoming Request: ${req.method} ${req.url}`,
-                    http: {
+                    http: (0, object_1.omitUndefined)({
                         method: req.method,
                         url: req.url || "/",
                         clientIp,
                         userAgent: req.headers["user-agent"],
-                    },
+                        headers: Object.keys(requestHeaders).length > 0 ? requestHeaders : undefined,
+                        query,
+                    }),
                 })
                     .catch((err) => {
                     if (self.debug) {
@@ -90,6 +129,53 @@ class HttpServerInstrumentation {
                     const responseSize = responseSizeStr ? parseInt(String(responseSizeStr), 10) : undefined;
                     // Read route if set by a routing framework
                     const route = requestCtx.metadata["route"];
+                    // Safely capture request body
+                    let body = undefined;
+                    const anyReq = req;
+                    if (anyReq.body !== undefined && anyReq.body !== null) {
+                        if (Buffer.isBuffer(anyReq.body)) {
+                            body = "[Buffer]";
+                        }
+                        else if (anyReq.body.pipe && typeof anyReq.body.pipe === "function") {
+                            body = "[Stream]";
+                        }
+                        else if (typeof anyReq.body === "string") {
+                            body = anyReq.body.length > 5000 ? anyReq.body.substring(0, 5000) + "... [truncated]" : anyReq.body;
+                        }
+                        else if (typeof anyReq.body === "object") {
+                            try {
+                                const serialized = JSON.stringify(anyReq.body);
+                                if (serialized.length > 5000) {
+                                    body = `[Object too large to log, size: ${serialized.length} bytes]`;
+                                }
+                                else {
+                                    body = anyReq.body;
+                                }
+                            }
+                            catch (e) {
+                                body = "[Unserializable Object]";
+                            }
+                        }
+                        else {
+                            body = anyReq.body;
+                        }
+                    }
+                    // Extract actor / tenant context if set dynamically by middleware
+                    const tokenData = anyReq.tokenData || anyReq.user || anyReq.authenticatedUser;
+                    if (tokenData && typeof tokenData === "object") {
+                        if (!requestCtx.actor) {
+                            requestCtx.actor = {
+                                type: constants_1.ActorType.USER,
+                                id: tokenData.id || tokenData._id || tokenData.sub,
+                                name: tokenData.name,
+                                email: tokenData.email,
+                                role: tokenData.userType || tokenData.role,
+                            };
+                        }
+                        if (tokenData.organizationId && !requestCtx.tenant.organizationId) {
+                            requestCtx.tenant.organizationId = tokenData.organizationId;
+                        }
+                    }
                     void self.collector
                         .collect({
                         category: constants_1.EventCategory.HTTP,
@@ -107,6 +193,9 @@ class HttpServerInstrumentation {
                             route,
                             userAgent: req.headers["user-agent"],
                             referer: req.headers["referer"],
+                            headers: Object.keys(requestHeaders).length > 0 ? requestHeaders : undefined,
+                            query,
+                            body,
                         }),
                         metadata: error
                             ? {
