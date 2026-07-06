@@ -13,6 +13,7 @@ exports.DEFAULT_CONFIG = {
     diskQueueEnabled: false,
     diskQueueDir: ".logsense/queue",
     disableInstrumentation: false,
+    metricsIntervalMs: 3600000,
     retry: {
         maxAttempts: 5,
         backoffType: "jitter",
@@ -104,6 +105,7 @@ function buildConfig(userConfig) {
         diskQueueDir: userConfig?.diskQueueDir || env["LOGSENSE_DISK_QUEUE_DIR"] || exports.DEFAULT_CONFIG.diskQueueDir,
         disableInstrumentation: userConfig?.disableInstrumentation ?? (env["LOGSENSE_DISABLE_INSTRUMENTATION"] === "true" || exports.DEFAULT_CONFIG.disableInstrumentation),
         profile: resolvedProfile,
+        metricsIntervalMs: userConfig?.metricsIntervalMs ?? (env["LOGSENSE_METRICS_INTERVAL"] ? parseInt(env["LOGSENSE_METRICS_INTERVAL"], 10) : exports.DEFAULT_CONFIG.metricsIntervalMs),
     };
     return config;
 }

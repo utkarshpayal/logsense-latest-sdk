@@ -4,6 +4,7 @@
 * [Getting Started](getting-started/installation-and-setup.md)
 * [SDK Core & Configuration](sdk/configuration.md)
 * [Client & Logging APIs](sdk/client-and-logger.md)
+* [Logging Data Reference](reference/logging-data-reference.md)
 * [Middleware Observability](middleware/express.md)
 * [Automatic Instrumentation](instrumentation/http-and-db.md)
 * [SDK Architecture & Pipeline](architecture/logging-pipeline-and-context.md)

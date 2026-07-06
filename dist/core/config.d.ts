@@ -41,6 +41,7 @@ export interface SDKConfig {
     diskQueueDir?: string;
     disableInstrumentation?: boolean;
     profile?: "development" | "production" | "testing" | "serverless";
+    metricsIntervalMs?: number;
 }
 export declare const DEFAULT_CONFIG: {
     endpoint: string;
@@ -51,6 +52,7 @@ export declare const DEFAULT_CONFIG: {
     diskQueueEnabled: boolean;
     diskQueueDir: string;
     disableInstrumentation: boolean;
+    metricsIntervalMs: number;
     retry: {
         maxAttempts: number;
         backoffType: "jitter";
@@ -91,6 +93,7 @@ export interface ResolvedSDKConfig {
     diskQueueDir: string;
     disableInstrumentation: boolean;
     profile?: "development" | "production" | "testing" | "serverless";
+    metricsIntervalMs: number;
 }
 /**
  * Builds configuration by merging profile defaults, user-provided config, environment variables, and defaults.

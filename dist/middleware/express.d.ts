@@ -7,6 +7,8 @@ declare global {
             logsense: {
                 /** The resolved request ID for this HTTP transaction. */
                 requestId: string;
+                /** The resolved trace ID for this HTTP transaction. */
+                traceId?: string;
             };
         }
     }
@@ -32,6 +34,7 @@ export interface LogSenseMiddlewareOptions {
  */
 export interface RequestLogContext {
     requestId: string;
+    traceId?: string;
     method: string;
     path: string;
     route: string | undefined;
@@ -42,15 +45,15 @@ export interface RequestLogContext {
     environment: string;
 }
 /**
- * Creates an Express middleware pair (request logger + error logger) that
- * automatically captures every HTTP transaction using an existing
- * `LogSenseClient` instance.
+ * Creates an Express middleware pair that initializes HTTP request context
+ * for the current request and enables AsyncLocalStorage propagation.
  *
- * ### What is automatically captured
- * - **Incoming requests** — method, URL, route, IP, user-agent, request ID, timestamp
- * - **Outgoing responses** — status code, duration, content-length, request ID
- * - **Slow requests** — logged at WARN when duration exceeds `slowThresholdMs`
- * - **Unhandled route errors** — stack, name, message, request ID logged at ERROR
+ * ### What this middleware does
+ * - creates and attaches `req.logsense.requestId`
+ * - resolves and attaches `traceId`
+ * - sets `X-Request-ID` on the response
+ * - runs the route inside AsyncLocalStorage context
+ * - forwards unhandled route errors to Express error middleware
  *
  * ### Usage
  * ```ts

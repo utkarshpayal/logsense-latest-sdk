@@ -193,7 +193,7 @@ export class HttpServerInstrumentation {
                     void self.collector
                         .collect<any>({
                             category: EventCategory.HTTP,
-                            type: success ? "request.finished" : "request.failed",
+                            type: "request.finished",
                             action: success ? EventStatus.SUCCESS : EventStatus.FAILED,
                             severity: success ? Severity.INFO : Severity.ERROR,
                             message: `Request Completed: ${req.method} ${req.url} - ${statusCode} (${duration}ms)`,

@@ -155,7 +155,7 @@ class LogSenseClient {
         });
         this.runtimeMonitor = new runtime_monitor_1.RuntimeMonitor({
             collector: this.collector,
-            intervalMs: 10000,
+            intervalMs: this.config.metricsIntervalMs,
             debug: this.config.debug,
         });
         this.httpClientInstrumentation = new http_client_instrumentation_1.HttpClientInstrumentation({

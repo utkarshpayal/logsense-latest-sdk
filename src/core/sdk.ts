@@ -184,7 +184,7 @@ export class LogSenseClient {
 
         this.runtimeMonitor = new RuntimeMonitor({
             collector: this.collector,
-            intervalMs: 10000,
+            intervalMs: this.config.metricsIntervalMs,
             debug: this.config.debug,
         });
 

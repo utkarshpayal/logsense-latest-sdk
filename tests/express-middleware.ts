@@ -172,7 +172,7 @@ function createTestServer(
  * ───────────────────────────────────────────────────────────── */
 
 async function testRequestLogging(): Promise<void> {
-    section("1. Incoming request logging");
+    section("1. Middleware request context only");
 
     const srv = createTestServer((app) => {
         app.get("/health", (_req: Request, res: Response) => res.status(200).json({ ok: true }));
@@ -181,25 +181,14 @@ async function testRequestLogging(): Promise<void> {
     try {
         await srv.request({ path: "/health" });
 
-        const infoEntries = srv.mockLogger.forLevel("info");
-        const incomingEntry = infoEntries.find((e) => e.message.includes("→") && e.message.includes("/health"));
-
-        assert(incomingEntry !== undefined, "Logs an incoming request entry");
-
-        const meta = incomingEntry?.metadata ?? {};
-        assert(typeof meta["requestId"] === "string" && (meta["requestId"] as string).length > 0, "requestId is present in metadata");
-        assert(meta["method"] === "GET", "method is captured");
-        assert(meta["path"] === "/health", "path is captured");
-        assert(meta["service"] === "test-service", "service is captured from config");
-        assert(meta["environment"] === "test", "environment is captured from config");
-        assert(meta["event"] === "request.incoming", "event tag is 'request.incoming'");
+        assert(srv.mockLogger.entries.length === 0, "Express middleware does not emit HTTP lifecycle logs");
     } finally {
         await srv.close();
     }
 }
 
 async function testResponseLogging(): Promise<void> {
-    section("2. Outgoing response logging");
+    section("2. Middleware does not log responses");
 
     const srv = createTestServer((app) => {
         app.get("/ping", (_req: Request, res: Response) => res.status(200).send("pong"));
@@ -208,25 +197,14 @@ async function testResponseLogging(): Promise<void> {
     try {
         await srv.request({ path: "/ping" });
 
-        const infoEntries = srv.mockLogger.forLevel("info");
-        const responseEntry = infoEntries.find(
-            (e) => e.message.includes("←") && e.message.includes("/ping") && e.message.includes("200"),
-        );
-
-        assert(responseEntry !== undefined, "Logs an outgoing response entry");
-
-        const meta = responseEntry?.metadata ?? {};
-        assert(meta["statusCode"] === 200, "statusCode is captured");
-        assert(typeof meta["durationMs"] === "number", "durationMs is a number");
-        assert((meta["durationMs"] as number) >= 0, "durationMs is non-negative");
-        assert(meta["event"] === "request.completed", "event tag is 'request.completed'");
+        assert(srv.mockLogger.entries.length === 0, "Express middleware does not emit response lifecycle logs");
     } finally {
         await srv.close();
     }
 }
 
 async function testSlowRequestWarning(): Promise<void> {
-    section("3. Slow request warning");
+    section("3. No slow request lifecycle logs from middleware");
 
     const srv = createTestServer(
         (app) => {
@@ -234,21 +212,14 @@ async function testSlowRequestWarning(): Promise<void> {
                 setTimeout(() => res.status(200).send("done"), 80);
             });
         },
-        { slowThresholdMs: 50 }, // Threshold lower than the handler delay
+        { slowThresholdMs: 50 }, // Unused by current middleware behavior
     );
 
     try {
         await srv.request({ path: "/slow", settle: 200 });
 
         const warnEntries = srv.mockLogger.forLevel("warn");
-        const slowEntry = warnEntries.find((e) => e.message.includes("Slow request"));
-
-        assert(slowEntry !== undefined, "Emits a WARN for slow requests");
-
-        const meta = slowEntry?.metadata ?? {};
-        assert(meta["event"] === "request.slow", "event tag is 'request.slow'");
-        assert(typeof meta["durationMs"] === "number" && (meta["durationMs"] as number) > 50, "durationMs exceeds threshold");
-        assert(meta["slowThresholdMs"] === 50, "slowThresholdMs is included in metadata");
+        assert(warnEntries.length === 0, "Express middleware no longer emits slow request lifecycle warnings");
     } finally {
         await srv.close();
     }
@@ -308,10 +279,12 @@ async function testExistingRequestIdRespected(): Promise<void> {
     section("6. Existing X-Request-ID header is forwarded");
 
     let capturedRequestId: string | undefined;
+    let capturedTraceId: string | undefined;
 
     const srv = createTestServer((app) => {
         app.get("/passthrough", (req: Request, res: Response) => {
             capturedRequestId = req.logsense?.requestId;
+            capturedTraceId = req.logsense?.traceId;
             res.status(200).send("ok");
         });
     });
@@ -321,10 +294,7 @@ async function testExistingRequestIdRespected(): Promise<void> {
     try {
         await srv.request({ path: "/passthrough", headers: { "x-request-id": providedId } });
         assert(capturedRequestId === providedId, "Existing X-Request-ID is preserved in req.logsense.requestId");
-
-        const entries = srv.mockLogger.entries;
-        const hasProvidedId = entries.some((e) => e.metadata?.["requestId"] === providedId);
-        assert(hasProvidedId, "Provided request ID appears in log metadata");
+        assert(capturedTraceId === providedId, "Existing X-Request-ID is used as traceId when no x-trace-id header is provided");
     } finally {
         await srv.close();
     }
@@ -346,7 +316,7 @@ async function testXRequestIdResponseHeader(): Promise<void> {
 }
 
 async function testCustomMetadata(): Promise<void> {
-    section("8. Custom metadata is merged into all log entries");
+    section("8. Middleware request context includes no log-side metadata");
 
     const srv = createTestServer(
         (app) => {
@@ -360,12 +330,7 @@ async function testCustomMetadata(): Promise<void> {
     try {
         await srv.request({ path: "/meta-check" });
 
-        const entries = srv.mockLogger.entries;
-        const withVersion = entries.filter((e) => e.metadata?.["version"] === "2.0.0");
-        const withRegion = entries.filter((e) => e.metadata?.["region"] === "us-east-1");
-
-        assert(withVersion.length > 0, "Custom metadata 'version' appears in log entries");
-        assert(withRegion.length > 0, "Custom metadata 'region' appears in log entries");
+        assert(srv.mockLogger.entries.length === 0, "Custom metadata is no longer emitted by middleware lifecycle logs");
     } finally {
         await srv.close();
     }

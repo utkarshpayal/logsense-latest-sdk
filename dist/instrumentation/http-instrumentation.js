@@ -179,7 +179,7 @@ class HttpServerInstrumentation {
                     void self.collector
                         .collect({
                         category: constants_1.EventCategory.HTTP,
-                        type: success ? "request.finished" : "request.failed",
+                        type: "request.finished",
                         action: success ? constants_1.EventStatus.SUCCESS : constants_1.EventStatus.FAILED,
                         severity: success ? constants_1.Severity.INFO : constants_1.Severity.ERROR,
                         message: `Request Completed: ${req.method} ${req.url} - ${statusCode} (${duration}ms)`,

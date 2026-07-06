@@ -45,6 +45,7 @@ export interface SDKConfig {
     diskQueueDir?: string;
     disableInstrumentation?: boolean;
     profile?: "development" | "production" | "testing" | "serverless";
+    metricsIntervalMs?: number;
 }
 
 export const DEFAULT_CONFIG = {
@@ -56,6 +57,7 @@ export const DEFAULT_CONFIG = {
     diskQueueEnabled: false,
     diskQueueDir: ".logsense/queue",
     disableInstrumentation: false,
+    metricsIntervalMs: 3600000,
     retry: {
         maxAttempts: 5,
         backoffType: "jitter" as const,
@@ -97,6 +99,7 @@ export interface ResolvedSDKConfig {
     diskQueueDir: string;
     disableInstrumentation: boolean;
     profile?: "development" | "production" | "testing" | "serverless";
+    metricsIntervalMs: number;
 }
 
 /**
@@ -187,6 +190,7 @@ export function buildConfig(userConfig?: SDKConfig): ResolvedSDKConfig {
         diskQueueDir: userConfig?.diskQueueDir || env["LOGSENSE_DISK_QUEUE_DIR"] || DEFAULT_CONFIG.diskQueueDir,
         disableInstrumentation: userConfig?.disableInstrumentation ?? (env["LOGSENSE_DISABLE_INSTRUMENTATION"] === "true" || DEFAULT_CONFIG.disableInstrumentation),
         profile: resolvedProfile,
+        metricsIntervalMs: userConfig?.metricsIntervalMs ?? (env["LOGSENSE_METRICS_INTERVAL"] ? parseInt(env["LOGSENSE_METRICS_INTERVAL"], 10) : DEFAULT_CONFIG.metricsIntervalMs),
     };
 
     return config;

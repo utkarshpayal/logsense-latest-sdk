@@ -4,8 +4,6 @@ import { LogSenseClient } from "../core/sdk.js";
 import { contextStore } from "../context/context-store.js";
 import { extractRequestId } from "../utils/request-id.js";
 import type { Metadata } from "../event/types.js";
-import { omitUndefined } from "../utils/object.js";
-import { ActorType } from "../event/constants.js";
 
 /* ─────────────────────────────────────────────────────────────
  * Express type augmentation
@@ -19,6 +17,8 @@ declare global {
             logsense: {
                 /** The resolved request ID for this HTTP transaction. */
                 requestId: string;
+                /** The resolved trace ID for this HTTP transaction. */
+                traceId?: string;
             };
         }
     }
@@ -51,6 +51,7 @@ export interface LogSenseMiddlewareOptions {
  */
 export interface RequestLogContext {
     requestId: string;
+    traceId?: string;
     method: string;
     path: string;
     route: string | undefined;
@@ -62,27 +63,19 @@ export interface RequestLogContext {
 }
 
 /* ─────────────────────────────────────────────────────────────
- * Internal helpers
- * ───────────────────────────────────────────────────────────── */
-
-function hrToMs(diff: bigint): number {
-    return Number(diff / 1_000_000n);
-}
-
-/* ─────────────────────────────────────────────────────────────
  * Middleware factory
  * ───────────────────────────────────────────────────────────── */
 
 /**
- * Creates an Express middleware pair (request logger + error logger) that
- * automatically captures every HTTP transaction using an existing
- * `LogSenseClient` instance.
+ * Creates an Express middleware pair that initializes HTTP request context
+ * for the current request and enables AsyncLocalStorage propagation.
  *
- * ### What is automatically captured
- * - **Incoming requests** — method, URL, route, IP, user-agent, request ID, timestamp
- * - **Outgoing responses** — status code, duration, content-length, request ID
- * - **Slow requests** — logged at WARN when duration exceeds `slowThresholdMs`
- * - **Unhandled route errors** — stack, name, message, request ID logged at ERROR
+ * ### What this middleware does
+ * - creates and attaches `req.logsense.requestId`
+ * - resolves and attaches `traceId`
+ * - sets `X-Request-ID` on the response
+ * - runs the route inside AsyncLocalStorage context
+ * - forwards unhandled route errors to Express error middleware
  *
  * ### Usage
  * ```ts
@@ -111,7 +104,7 @@ export function logsenseMiddleware(
     client: LogSenseClient,
     options: LogSenseMiddlewareOptions = {},
 ): [RequestHandler, ErrorRequestHandler] {
-    const { slowThresholdMs = 1000, metadata = {} } = options;
+    const { metadata = {} } = options;
     const { logger, config } = client;
 
     const hostname = os.hostname();
@@ -131,25 +124,29 @@ export function logsenseMiddleware(
 
     /* ── Request / Response handler ── */
     const requestHandler: RequestHandler = (req: Request, res: Response, next: NextFunction): void => {
-        const requestId = extractRequestId(req);
-        const startTime = process.hrtime.bigint();
+        const activeCtx = contextStore.get();
+        const requestId = activeCtx?.requestId ?? extractRequestId(req);
+        const traceId = activeCtx?.traceId ?? ((typeof req.headers["x-trace-id"] === "string" && req.headers["x-trace-id"].trim().length > 0)
+            ? req.headers["x-trace-id"]
+            : requestId);
 
         // Attach to req so downstream route handlers can access it
-        req.logsense = { requestId };
+        req.logsense = { requestId, traceId };
 
         // Set request ID on the response for client correlation
         res.setHeader("X-Request-ID", requestId);
 
+        if (activeCtx) {
+            next();
+            return;
+        }
+
         const method = req.method;
         const path = req.path ?? req.url;
-        const ip = req.ip ?? req.socket?.remoteAddress;
-        const userAgent = req.headers["user-agent"];
 
-        const baseMeta = buildBaseMetadata(requestId, method, path);
-
-        // Build a RequestContext for AsyncLocalStorage propagation
+        // Build a RequestContext for AsyncLocalStorage propagation.
         const requestContext = {
-            traceId: requestId,
+            traceId,
             requestId,
             spanId: undefined,
             sessionId: undefined,
@@ -160,145 +157,10 @@ export function logsenseMiddleware(
                 service: config.service ?? "",
             },
             actor: undefined as any,
-            metadata: { ...baseMeta } as Record<string, unknown>,
+            metadata: { ...buildBaseMetadata(requestId, method, path) } as Record<string, unknown>,
         };
 
-        /* Run the entire request lifecycle inside the context store so that
-           any log emitted within a route handler automatically inherits the
-           requestId, traceId, method, and path. */
         contextStore.run(requestContext as any, () => {
-            // Parse query parameters
-            let query: any = undefined;
-            if (req.url) {
-                try {
-                    const parsedUrl = new URL(req.url, "http://localhost");
-                    const qObj: Record<string, string> = {};
-                    parsedUrl.searchParams.forEach((val, key) => {
-                        qObj[key] = val;
-                    });
-                    if (Object.keys(qObj).length > 0) {
-                        query = qObj;
-                    }
-                } catch (e) {
-                    const parts = req.url.split("?");
-                    if (parts.length > 1) {
-                        const qObj: Record<string, string> = {};
-                        const params = new URLSearchParams(parts[1]);
-                        params.forEach((val, key) => {
-                            qObj[key] = val;
-                        });
-                        if (Object.keys(qObj).length > 0) {
-                            query = qObj;
-                        }
-                    }
-                }
-            }
-
-            // Safely capture headers
-            const requestHeaders: Record<string, string> = {};
-            for (const [key, val] of Object.entries(req.headers)) {
-                if (typeof val === "string") {
-                    requestHeaders[key] = val;
-                } else if (Array.isArray(val)) {
-                    requestHeaders[key] = val.join(", ");
-                }
-            }
-
-            // Log incoming request
-            logger.info(`→ ${method} ${path}`, omitUndefined({
-                ...baseMeta,
-                ...(ip !== undefined ? { ip } : {}),
-                ...(userAgent !== undefined ? { userAgent } : {}),
-                event: "request.incoming",
-                http: {
-                    method,
-                    url: req.url || "/",
-                    clientIp: ip,
-                    userAgent,
-                    headers: Object.keys(requestHeaders).length > 0 ? requestHeaders : undefined,
-                    query,
-                }
-            }) as any);
-
-            res.on("finish", () => {
-                const durationMs = hrToMs(process.hrtime.bigint() - startTime);
-                const statusCode = res.statusCode;
-                const contentLength = res.getHeader("content-length");
-                const route = req.route?.path as string | undefined;
-
-                // Safely capture request body
-                let body: any = undefined;
-                if (req.body !== undefined && req.body !== null) {
-                    if (Buffer.isBuffer(req.body)) {
-                        body = "[Buffer]";
-                    } else if (req.body.pipe && typeof req.body.pipe === "function") {
-                        body = "[Stream]";
-                    } else if (typeof req.body === "string") {
-                        body = req.body.length > 5000 ? req.body.substring(0, 5000) + "... [truncated]" : req.body;
-                    } else if (typeof req.body === "object") {
-                        try {
-                            const serialized = JSON.stringify(req.body);
-                            if (serialized.length > 5000) {
-                                body = `[Object too large to log, size: ${serialized.length} bytes]`;
-                            } else {
-                                body = req.body;
-                            }
-                        } catch (e) {
-                            body = "[Unserializable Object]";
-                        }
-                    } else {
-                        body = req.body;
-                    }
-                }
-
-                // Extract actor / tenant context if set dynamically by middleware
-                const tokenData = (req as any).tokenData || (req as any).user || (req as any).authenticatedUser;
-                if (tokenData && typeof tokenData === "object") {
-                    if (!requestContext.actor) {
-                        requestContext.actor = {
-                            type: ActorType.USER,
-                            id: tokenData.id || tokenData._id || tokenData.sub,
-                            name: tokenData.name,
-                            email: tokenData.email,
-                            role: tokenData.userType || tokenData.role,
-                        };
-                    }
-                    if (tokenData.organizationId && !requestContext.tenant.organizationId) {
-                        requestContext.tenant.organizationId = tokenData.organizationId;
-                    }
-                }
-
-                const responseMeta: any = omitUndefined({
-                    ...baseMeta,
-                    ...(route !== undefined ? { route } : {}),
-                    statusCode,
-                    durationMs,
-                    event: "request.completed",
-                    ...(contentLength !== undefined ? { contentLength: Number(contentLength) } : {}),
-                    http: {
-                        method,
-                        url: req.url || "/",
-                        statusCode,
-                        clientIp: ip,
-                        route,
-                        userAgent,
-                        headers: Object.keys(requestHeaders).length > 0 ? requestHeaders : undefined,
-                        query,
-                        body,
-                    }
-                });
-
-                if (durationMs > slowThresholdMs) {
-                    logger.warn(`⚠ Slow request: ${method} ${path} completed in ${durationMs}ms`, {
-                        ...responseMeta,
-                        event: "request.slow",
-                        slowThresholdMs,
-                    });
-                } else {
-                    logger.info(`← ${method} ${path} ${statusCode} (${durationMs}ms)`, responseMeta);
-                }
-            });
-
             next();
         });
     };
