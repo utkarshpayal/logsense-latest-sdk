@@ -26,7 +26,7 @@ graph LR
 ### Implementing a Custom Processor
 To register a processor, pass it to the `processors` array during initialization:
 ```typescript
-import { LogSense, LogEvent } from "@logsense/node";
+import { LogSense, LogEvent } from "@utkarshpayal/logsense-sdk";
 
 const client = new LogSense({
   apiKey: "...",
@@ -74,8 +74,7 @@ sequenceDiagram
 ### How to Install the Process Plugin
 The `ProcessPlugin` hooks into standard termination signals (`SIGINT`, `SIGTERM`) and process exit triggers (`beforeExit`):
 ```typescript
-import { LogSense } from "@logsense/node";
-import { ProcessPlugin } from "@logsense/node/plugins";
+import { LogSense, ProcessPlugin } from "@utkarshpayal/logsense-sdk";
 
 const sdk = new LogSense({ apiKey: "..." });
 

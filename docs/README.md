@@ -21,6 +21,19 @@ LogSense re-imagines logging by combining **structured JSON serialization**, **A
 
 ---
 
+## Quick Install
+
+```bash
+npm i @utkarshpayal/logsense-sdk
+```
+
+```typescript
+import { LogSense } from "@utkarshpayal/logsense-sdk";
+import { logsenseMiddleware } from "@utkarshpayal/logsense-sdk/express";
+```
+
+---
+
 ## High-Level Architecture
 
 LogSense is divided into five core layers that process telemetry data from creation to ingestion:

@@ -2,13 +2,13 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.logsenseMiddleware = void 0;
 /**
- * @module @logsense/node/express
+ * @module @utkarshpayal/logsense-sdk/express
  *
  * Express middleware for automatic HTTP observability.
  *
  * @example
  * ```ts
- * import { logsenseMiddleware } from "@logsense/node/express";
+ * import { logsenseMiddleware } from "@utkarshpayal/logsense-sdk/express";
  * ```
  */
 var express_js_1 = require("./express.js");

@@ -58,8 +58,7 @@ Intercepts `mysql2` connections and pool configurations.
 ### 1. Connecting Mongoose Database Logging
 ```typescript
 import mongoose from "mongoose";
-import { LogSense } from "@logsense/node";
-import { mongooseLogSensePlugin } from "@logsense/node/instrumentation";
+import { LogSense, mongooseLogSensePlugin } from "@utkarshpayal/logsense-sdk";
 
 const sdk = new LogSense({ apiKey: "..." });
 
@@ -74,8 +73,7 @@ const User = mongoose.model("User", userSchema);
 ### 2. Wrapping Postgres (`pg`) Connections
 ```typescript
 import pg from "pg";
-import { LogSense } from "@logsense/node";
-import { wrapPg } from "@logsense/node/instrumentation";
+import { LogSense, wrapPg } from "@utkarshpayal/logsense-sdk";
 
 const sdk = new LogSense({ apiKey: "..." });
 const pool = new pg.Pool({ connectionString: "postgresql://localhost:5432/db" });
@@ -90,8 +88,7 @@ await pool.query("SELECT * FROM organization WHERE active = $1", [true]);
 ### 3. Prisma Client Integration
 ```typescript
 import { PrismaClient } from "@prisma/client";
-import { LogSense } from "@logsense/node";
-import { prismaLogSenseExtension } from "@logsense/node/instrumentation";
+import { LogSense, prismaLogSenseExtension } from "@utkarshpayal/logsense-sdk";
 
 const sdk = new LogSense({ apiKey: "..." });
 const prismaRaw = new PrismaClient();

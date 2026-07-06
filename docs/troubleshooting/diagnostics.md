@@ -61,7 +61,7 @@ If you register a route handler before registering `logRequests`, downstream ope
 ### Check Async Execution Paths
 If your code uses external async wrappers or runs code outside the standard Express request-response loop (like scheduled intervals, worker queues, or detached promises), the context is lost. Wrap these tasks manually using `contextStore.run()` to preserve trace context:
 ```typescript
-import { contextStore } from "@logsense/node/context";
+import { contextStore } from "@utkarshpayal/logsense-sdk";
 
 // Preserve trace context across decoupled execution paths
 contextStore.run(activeContext, () => {

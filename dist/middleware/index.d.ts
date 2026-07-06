@@ -1,11 +1,11 @@
 /**
- * @module @logsense/node/express
+ * @module @utkarshpayal/logsense-sdk/express
  *
  * Express middleware for automatic HTTP observability.
  *
  * @example
  * ```ts
- * import { logsenseMiddleware } from "@logsense/node/express";
+ * import { logsenseMiddleware } from "@utkarshpayal/logsense-sdk/express";
  * ```
  */
 export { logsenseMiddleware } from "./express.js";

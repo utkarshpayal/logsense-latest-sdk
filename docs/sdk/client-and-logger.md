@@ -75,7 +75,7 @@ Creates a context-bound child logger. All subsequent logs sent through this chil
 
 ### 1. Structured Custom Logs
 ```typescript
-import { LogSense } from "@logsense/node";
+import { LogSense } from "@utkarshpayal/logsense-sdk";
 
 const sdk = new LogSense({ apiKey: "...", service: "order-service" });
 
@@ -88,7 +88,7 @@ sdk.logger.info("Inventory check initiated", {
 
 ### 2. Deep Exception Diagnostics
 ```typescript
-import { LogSense } from "@logsense/node";
+import { LogSense } from "@utkarshpayal/logsense-sdk";
 const sdk = new LogSense({ apiKey: "..." });
 
 try {
@@ -104,7 +104,7 @@ try {
 
 ### 3. Hierarchical Child Loggers
 ```typescript
-import { LogSense } from "@logsense/node";
+import { LogSense } from "@utkarshpayal/logsense-sdk";
 const sdk = new LogSense({ apiKey: "..." });
 
 // Create a logger scoped to a specific payment transaction
@@ -120,7 +120,7 @@ txLogger.info("Capture response received", { feeCharged: 12.5 });
 
 ### 4. Direct Flushing in Serverless/Short-Lived Tasks
 ```typescript
-import { LogSense } from "@logsense/node";
+import { LogSense } from "@utkarshpayal/logsense-sdk";
 const sdk = new LogSense({ apiKey: "..." });
 
 export async function handler() {

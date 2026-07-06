@@ -17,8 +17,7 @@ exports.ProcessPlugin = void 0;
  *
  * @example
  * ```ts
- * import { LogSense } from "@logsense/node";
- * import { ProcessPlugin } from "@logsense/node";
+ * import { LogSense, ProcessPlugin } from "@utkarshpayal/logsense-sdk";
  *
  * const sdk = new LogSense({ apiKey: "...", service: "api", environment: "production" });
  * const processPlugin = new ProcessPlugin(sdk);

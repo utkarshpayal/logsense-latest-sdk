@@ -43,7 +43,7 @@ LogSense is a production-ready logging SDK for Node.js that provides:
 # 2. Installation
 
 ``` bash
-npm install @logsense/node
+npm i @utkarshpayal/logsense-sdk
 ```
 
 ------------------------------------------------------------------------
@@ -51,7 +51,7 @@ npm install @logsense/node
 # 3. Quick Start
 
 ``` ts
-import { LogSense } from "@logsense/node";
+import { LogSense } from "@utkarshpayal/logsense-sdk";
 
 const logger = new LogSense({
   apiKey: process.env.LOGSENSE_API_KEY!,
@@ -154,9 +154,13 @@ Captured fields:
 # 8. Express Middleware
 
 ``` ts
-import { logsenseMiddleware } from "@logsense/node/express";
+import { logsenseMiddleware } from "@utkarshpayal/logsense-sdk/express";
 
-app.use(logsenseMiddleware(logger));
+const [logRequests, logErrors] = logsenseMiddleware(logger);
+
+app.use(logRequests);
+// Register routes here.
+app.use(logErrors);
 ```
 
 Automatically logs:
@@ -311,7 +315,8 @@ const logger = new LogSense({
   environment: "production",
 });
 
-app.use(logsenseMiddleware(logger));
+const [logRequests, logErrors] = logsenseMiddleware(logger);
+app.use(logRequests);
 
 app.post("/payments", async (req, res) => {
   logger.info("Payment initiated", {
@@ -321,6 +326,8 @@ app.post("/payments", async (req, res) => {
 
   res.json({ success: true });
 });
+
+app.use(logErrors);
 ```
 
 ------------------------------------------------------------------------

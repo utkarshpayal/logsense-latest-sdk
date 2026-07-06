@@ -38,7 +38,7 @@ Node.js is asynchronous but single-threaded. Standard request correlation relies
 
 When the Express middleware receives a request, it calls `contextStore.run(context, next)`. Any code executed within this execution path (including async database queries or nested helper promises) shares access to the request context:
 ```typescript
-import { contextStore } from "@logsense/node/context";
+import { contextStore } from "@utkarshpayal/logsense-sdk";
 
 // Access the active trace variables anywhere in your app code
 const activeContext = contextStore.get();

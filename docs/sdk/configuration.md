@@ -58,7 +58,7 @@ Profiles allow you to configure the SDK instantly for different deployment tiers
 
 ### 1. Simple Development Configuration
 ```typescript
-import { LogSense } from "@logsense/node";
+import { LogSense } from "@utkarshpayal/logsense-sdk";
 
 const client = new LogSense({
   apiKey: "ls_dev_key",
@@ -71,7 +71,7 @@ const client = new LogSense({
 
 ### 2. High-Throughput Production Microservice Configuration
 ```typescript
-import { LogSense } from "@logsense/node";
+import { LogSense } from "@utkarshpayal/logsense-sdk";
 
 const client = new LogSense({
   apiKey: process.env.LOGSENSE_API_KEY!,
@@ -96,7 +96,7 @@ const client = new LogSense({
 ### 3. Serverless Configuration (AWS Lambda / Vercel Edge)
 In serverless environments, background tasks cannot outlive the handler execution. We must flush immediately:
 ```typescript
-import { LogSense } from "@logsense/node";
+import { LogSense } from "@utkarshpayal/logsense-sdk";
 
 const client = new LogSense({
   apiKey: process.env.LOGSENSE_API_KEY!,

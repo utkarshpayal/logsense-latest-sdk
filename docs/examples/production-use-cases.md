@@ -11,9 +11,8 @@ This example demonstrates integrating LogSense into an Express API with database
 ```typescript
 import express from "express";
 import pg from "pg";
-import { LogSense } from "@logsense/node";
-import { logsenseMiddleware } from "@logsense/node/express";
-import { wrapPg } from "@logsense/node/instrumentation";
+import { LogSense, wrapPg } from "@utkarshpayal/logsense-sdk";
+import { logsenseMiddleware } from "@utkarshpayal/logsense-sdk/express";
 
 // 1. Initialize LogSense SDK
 const sdk = new LogSense({
@@ -75,7 +74,7 @@ app.listen(8080, () => {
 This example demonstrates using **child loggers** to scope telemetry to specific modules, and custom **PII masking** configuration to prevent leaks of sensitive parameters like passwords or verification tokens.
 
 ```typescript
-import { LogSense } from "@logsense/node";
+import { LogSense } from "@utkarshpayal/logsense-sdk";
 
 const sdk = new LogSense({
   apiKey: process.env.LOGSENSE_API_KEY!,
@@ -128,7 +127,7 @@ export async function loginUser(payload: Record<string, any>) {
 This example demonstrates logging transactional events and capturing exceptions with metadata inside a payment processing queue.
 
 ```typescript
-import { LogSense } from "@logsense/node";
+import { LogSense } from "@utkarshpayal/logsense-sdk";
 
 const sdk = new LogSense({
   apiKey: process.env.LOGSENSE_API_KEY!,
@@ -183,8 +182,7 @@ export async function processTransaction(txPayload: {
 For CLI utilities, worker scripts, and cron tasks that exit immediately after execution, you must call `shutdown()` or `flush()` to send buffered logs before Node terminates.
 
 ```typescript
-import { LogSense } from "@logsense/node";
-import { ProcessPlugin } from "@logsense/node/plugins";
+import { LogSense, ProcessPlugin } from "@utkarshpayal/logsense-sdk";
 
 const sdk = new LogSense({
   apiKey: process.env.LOGSENSE_API_KEY!,

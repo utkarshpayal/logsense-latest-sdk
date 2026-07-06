@@ -60,8 +60,8 @@ The middleware factory function `logsenseMiddleware(sdk, options)` accepts the f
 ### 1. Basic Integration
 ```typescript
 import express from "express";
-import { LogSense } from "@logsense/node";
-import { logsenseMiddleware } from "@logsense/node/express";
+import { LogSense } from "@utkarshpayal/logsense-sdk";
+import { logsenseMiddleware } from "@utkarshpayal/logsense-sdk/express";
 
 const app = express();
 const sdk = new LogSense({ apiKey: "..." });
@@ -76,8 +76,8 @@ app.use(logErrors);   // Must be registered LAST
 ### 2. Custom Observability Configuration
 ```typescript
 import express from "express";
-import { LogSense } from "@logsense/node";
-import { logsenseMiddleware } from "@logsense/node/express";
+import { LogSense } from "@utkarshpayal/logsense-sdk";
+import { logsenseMiddleware } from "@utkarshpayal/logsense-sdk/express";
 
 const app = express();
 const sdk = new LogSense({ apiKey: "..." });
@@ -102,8 +102,8 @@ app.use(logErrors);
 The middleware automatically checks incoming request headers for `X-Request-ID` and `X-Correlation-ID`. If present, it inherits them:
 ```typescript
 import express from "express";
-import { LogSense } from "@logsense/node";
-import { logsenseMiddleware } from "@logsense/node/express";
+import { LogSense } from "@utkarshpayal/logsense-sdk";
+import { logsenseMiddleware } from "@utkarshpayal/logsense-sdk/express";
 
 const app = express();
 const sdk = new LogSense({ apiKey: "..." });

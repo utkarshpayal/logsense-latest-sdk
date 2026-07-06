@@ -40,6 +40,16 @@ sequenceDiagram
 
 ---
 
+# Install Package
+
+Install the SDK from npm before importing it in your application:
+
+```bash
+npm i @utkarshpayal/logsense-sdk
+```
+
+---
+
 # Configuration
 
 To initialize the client, you must provide your API Key and workspace descriptors. These can be passed via environment variables or explicitly in the constructor:
@@ -68,7 +78,7 @@ export LOGSENSE_PROJECT_ID="proj_abc"
 
 Initialize the global singleton:
 ```typescript
-import { logsense } from "@logsense/node";
+import { logsense } from "@utkarshpayal/logsense-sdk";
 
 // Automatically loads from environment variables
 logsense.init();
@@ -81,7 +91,7 @@ logsense.logger.info("Service started successfully");
 
 ```typescript
 import express from "express";
-import { LogSense } from "@logsense/node";
+import { LogSense } from "@utkarshpayal/logsense-sdk";
 
 const app = express();
 
@@ -100,7 +110,7 @@ logger.logger.info("Express application bootstrap initialized");
 ### 3. Production Multi-Service Microservice Setup
 
 ```typescript
-import { LogSense } from "@logsense/node";
+import { LogSense } from "@utkarshpayal/logsense-sdk";
 
 const logsenseClient = new LogSense({
   apiKey: process.env.LOGSENSE_API_KEY!,
@@ -139,7 +149,7 @@ This error occurs if any required variables are missing or incorrect:
 ### Node.js Process Exiting Too Early
 If you write a simple test script that logs an event and then exits immediately, Node might close the process before the background queue has run its first flush. In simple CLI tools or scripts, always call `await logsense.shutdown()` before exiting.
 ```typescript
-import { logsense } from "@logsense/node";
+import { logsense } from "@utkarshpayal/logsense-sdk";
 
 logsense.init();
 logsense.logger.info("One-off cron job finished");

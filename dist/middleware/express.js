@@ -24,20 +24,26 @@ const request_id_js_1 = require("../utils/request-id.js");
  * ### Usage
  * ```ts
  * import express from "express";
- * import { LogSense } from "@logsense/node";
- * import { logsenseMiddleware } from "@logsense/node/express";
+ * import { LogSense } from "@utkarshpayal/logsense-sdk";
+ * import { logsenseMiddleware } from "@utkarshpayal/logsense-sdk/express";
  *
  * const app = express();
  * const logger = new LogSense({ apiKey: "...", service: "my-api", environment: "production" });
  *
  * // Mount before all routes
- * app.use(logsenseMiddleware(logger));
+ * const [logRequests, logErrors] = logsenseMiddleware(logger);
+ * app.use(logRequests);
+ * // Register routes here.
+ * app.use(logErrors);
  *
  * // With options
- * app.use(logsenseMiddleware(logger, {
+ * const [requestLogger, errorLogger] = logsenseMiddleware(logger, {
  *   slowThresholdMs: 500,
  *   metadata: { version: "2.0.0" },
- * }));
+ * });
+ * app.use(requestLogger);
+ * // Register routes here.
+ * app.use(errorLogger);
  * ```
  *
  * @param client   An initialised `LogSenseClient` (or `LogSense`) instance.
