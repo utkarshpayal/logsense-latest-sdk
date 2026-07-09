@@ -429,6 +429,21 @@ exports.logsense = {
             metadata: metadata || {},
         });
     },
+    async trackOnboarding(userId, step, location, metadata) {
+        return this.track({
+            category: constants_1.EventCategory.ONBOARDING,
+            type: "onboarding",
+            action: step,
+            severity: constants_1.Severity.INFO,
+            message: `User Onboarding: user ${userId} at step ${step}`,
+            onboarding: {
+                userId,
+                step,
+                location,
+                metadata,
+            },
+        });
+    },
     business: {
         async orderCreated(orderId, amount, currency, metadata) {
             return exports.logsense.trackBusinessEvent("order.created", {
@@ -460,6 +475,11 @@ exports.logsense = {
                 amount,
                 ...metadata,
             });
+        },
+    },
+    onboarding: {
+        async userOnboarded(userId, step, location, metadata) {
+            return exports.logsense.trackOnboarding(userId, step, location, metadata);
         },
     },
     metrics() {

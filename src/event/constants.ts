@@ -13,6 +13,7 @@ export enum EventCategory {
     EXCEPTION = "exception",
     EXTERNAL = "external",
     BUSINESS = "business",
+    ONBOARDING = "onboarding",
     PAYMENT = "payment",
     DEPLOYMENT = "deployment",
     SECURITY = "security",

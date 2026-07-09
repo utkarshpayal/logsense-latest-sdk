@@ -15,6 +15,7 @@ This reference guide provides a complete and detailed breakdown of **every scena
 8. [Case 7: Automatic Exception Capture (Uncaught & Unhandled)](#case-7-automatic-exception-capture-uncaught--unhandled)
 9. [Case 8: Runtime Metrics & Process Lifecycle Events](#case-8-runtime-metrics--process-lifecycle-events)
 10. [Case 9: Contextual Breadcrumbs Management](#case-9-contextual-breadcrumbs-management)
+11. [Case 10: User Onboarding Telemetry](#case-10-user-onboarding-telemetry)
 
 ---
 
@@ -667,6 +668,67 @@ Below is an example of an HTTP completion event enriched with contextual breadcr
         "level": "debug"
       }
     ]
+  }
+}
+```
+
+---
+
+## Case 10: User Onboarding Telemetry
+
+### Trigger
+Triggered when manually logging onboarding progression, details, or locations of users via:
+* `logsense.trackOnboarding(userId, step, location, metadata)`
+* `logsense.onboarding.userOnboarded(userId, step, location, metadata)`
+
+This feature captures structured logs specifically designed for mapping active users, showing onboarding progression paths, and plotting user distribution geographically.
+
+### Captured Data
+* **Onboarding Context**:
+  * `userId`: Unique identifier of the user who is onboarding.
+  * `step`: The step name (e.g. `"started"`, `"profile_setup"`, `"completed"`).
+  * `location` (optional): Geographic coordinates and details to map the user:
+    * `latitude`: Latitude numeric coordinate.
+    * `longitude`: Longitude numeric coordinate.
+    * `city`: City name.
+    * `country`: Country name.
+    * `region`: State/region name.
+    * `ip`: IP Address.
+  * `metadata` (optional): Additional user or environment context.
+
+### Payload Example
+```json
+{
+  "version": "1.0.0",
+  "category": "onboarding",
+  "type": "onboarding",
+  "action": "profile_setup",
+  "severity": "info",
+  "message": "User Onboarding: user user_101 at step profile_setup",
+  "timestamp": "2026-07-09T04:43:28.154Z",
+  "tenant": {
+    "organizationId": "org_authentitas",
+    "projectId": "proj_prod_api",
+    "environment": "production",
+    "service": "authentitas-api"
+  },
+  "relationships": {
+    "eventId": "6778b814-fc8d-453c-98f5-7a7d475bddc1"
+  },
+  "onboarding": {
+    "userId": "user_101",
+    "step": "profile_setup",
+    "location": {
+      "latitude": 28.6139,
+      "longitude": 77.2090,
+      "city": "New Delhi",
+      "country": "India",
+      "region": "Delhi",
+      "ip": "122.161.49.20"
+    },
+    "metadata": {
+      "completedSections": ["basic_info", "avatar"]
+    }
   }
 }
 ```

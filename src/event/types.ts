@@ -251,6 +251,31 @@ export interface BusinessEvent extends BaseEvent {
 }
 
 /* ============================================================
+ * Onboarding
+ * ============================================================ */
+
+export interface OnboardingLocation {
+    latitude: number;
+    longitude: number;
+    city?: string;
+    country?: string;
+    region?: string;
+    ip?: string;
+}
+
+export interface OnboardingContext {
+    userId: string;
+    step: string;
+    location?: OnboardingLocation;
+    metadata?: Record<string, any>;
+}
+
+export interface OnboardingEvent extends BaseEvent {
+    category: EventCategory.ONBOARDING;
+    onboarding: OnboardingContext;
+}
+
+/* ============================================================
  * Custom
  * ============================================================ */
 
@@ -271,6 +296,7 @@ export type Event =
     | ExceptionEvent
     | RuntimeEvent
     | BusinessEvent
+    | OnboardingEvent
     | CustomEvent;
 
 /* ============================================================

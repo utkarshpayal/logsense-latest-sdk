@@ -128,6 +128,59 @@ async function runTests() {
         }
         console.log("✓ Exception capture check passed.");
 
+        // Onboarding test
+        console.log("\n[Test Onboarding] Tracking user onboarding event...");
+        await logsense.trackOnboarding("user_101", "profile_setup", {
+            latitude: 28.6139,
+            longitude: 77.2090,
+            city: "New Delhi",
+            country: "India",
+            region: "Delhi",
+            ip: "122.161.49.20",
+        }, {
+            completedSections: ["basic_info", "avatar"],
+        });
+        await new Promise((r) => setTimeout(r, 300));
+
+        const onboardingReq = receivedRequests.find((r) => r.events.some((e) => e.category === EventCategory.ONBOARDING));
+        if (!onboardingReq) {
+            throw new Error("No onboarding request received by mock server");
+        }
+        const onboardingEvent = onboardingReq.events.find((e) => e.category === EventCategory.ONBOARDING);
+        console.log("Captured Onboarding Event:", JSON.stringify(onboardingEvent, null, 2));
+
+        if (
+            onboardingEvent.category !== EventCategory.ONBOARDING ||
+            onboardingEvent.onboarding.userId !== "user_101" ||
+            onboardingEvent.onboarding.step !== "profile_setup" ||
+            onboardingEvent.onboarding.location.latitude !== 28.6139 ||
+            onboardingEvent.onboarding.location.city !== "New Delhi"
+        ) {
+            throw new Error("Onboarding event was not formatted correctly");
+        }
+        console.log("✓ Onboarding capture check passed.");
+
+        // Helper object onboarding test
+        console.log("\n[Test Onboarding Helper] Tracking user onboarding helper event...");
+        await logsense.onboarding.userOnboarded("user_102", "completed", {
+            latitude: 12.9716,
+            longitude: 77.5946,
+            city: "Bengaluru",
+            country: "India",
+        });
+        await new Promise((r) => setTimeout(r, 300));
+
+        const helperOnboardingReq = receivedRequests.find((r) => r.events.some((e) => e.onboarding && e.onboarding.userId === "user_102"));
+        if (!helperOnboardingReq) {
+            throw new Error("No helper onboarding request received by mock server");
+        }
+        const helperEvent = helperOnboardingReq.events.find((e) => e.onboarding && e.onboarding.userId === "user_102");
+        console.log("Captured Helper Onboarding Event:", JSON.stringify(helperEvent, null, 2));
+        if (helperEvent.onboarding.step !== "completed" || helperEvent.onboarding.location.city !== "Bengaluru") {
+            throw new Error("Helper onboarding event was not formatted correctly");
+        }
+        console.log("✓ Onboarding helper check passed.");
+
         // 5. Verify Disk Queue and Retry Manager (offline mode)
         console.log("\n[Test 4] Testing Disk Queue persistence and retry recovery...");
         // Re-init client to enable disk queue

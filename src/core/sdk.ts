@@ -27,6 +27,7 @@ import { FingerprintProcessor } from "../pipeline/processors/fingerprint";
 import { LogSensePlugin } from "../pipeline/plugin";
 import { spanManager } from "../tracing/span-manager";
 import { EventProcessor } from "../pipeline/processor";
+import { OnboardingLocation } from "../event/types";
 
 let globalClient: LogSenseClient | null = null;
 
@@ -493,6 +494,27 @@ export const logsense = {
         });
     },
 
+    async trackOnboarding(
+        userId: string,
+        step: string,
+        location?: OnboardingLocation,
+        metadata?: Record<string, any>
+    ): Promise<any> {
+        return this.track({
+            category: EventCategory.ONBOARDING,
+            type: "onboarding",
+            action: step,
+            severity: Severity.INFO,
+            message: `User Onboarding: user ${userId} at step ${step}`,
+            onboarding: {
+                userId,
+                step,
+                location,
+                metadata,
+            },
+        });
+    },
+
     business: {
         async orderCreated(orderId: string, amount: number, currency: string, metadata?: Record<string, any>): Promise<any> {
             return logsense.trackBusinessEvent("order.created", {
@@ -527,6 +549,17 @@ export const logsense = {
                 amount,
                 ...metadata,
             });
+        },
+    },
+
+    onboarding: {
+        async userOnboarded(
+            userId: string,
+            step: string,
+            location?: OnboardingLocation,
+            metadata?: Record<string, any>
+        ): Promise<any> {
+            return logsense.trackOnboarding(userId, step, location, metadata);
         },
     },
 

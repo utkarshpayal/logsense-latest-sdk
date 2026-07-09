@@ -11,6 +11,7 @@ import { HealthMonitor } from "../monitoring/health";
 import { Session } from "../session";
 import { LogSensePlugin } from "../pipeline/plugin";
 import { EventProcessor } from "../pipeline/processor";
+import { OnboardingLocation } from "../event/types";
 export declare class LogSenseClient {
     readonly config: ReturnType<typeof buildConfig>;
     readonly queue: EventQueue;
@@ -60,11 +61,15 @@ export declare const logsense: {
     resetIdentity(): void;
     currentSession(): Session | undefined;
     trackBusinessEvent(name: string, metadata?: Record<string, any>): Promise<any>;
+    trackOnboarding(userId: string, step: string, location?: OnboardingLocation, metadata?: Record<string, any>): Promise<any>;
     business: {
         orderCreated(orderId: string, amount: number, currency: string, metadata?: Record<string, any>): Promise<any>;
         paymentSucceeded(paymentId: string, amount: number, currency: string, metadata?: Record<string, any>): Promise<any>;
         userRegistered(userId: string, email: string, metadata?: Record<string, any>): Promise<any>;
         subscriptionRenewed(subscriptionId: string, plan: string, amount: number, metadata?: Record<string, any>): Promise<any>;
+    };
+    onboarding: {
+        userOnboarded(userId: string, step: string, location?: OnboardingLocation, metadata?: Record<string, any>): Promise<any>;
     };
     metrics(): Record<string, any> | null;
     health(): any | null;

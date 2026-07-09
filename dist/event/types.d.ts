@@ -152,9 +152,27 @@ export interface RuntimeEvent extends BaseEvent {
 export interface BusinessEvent extends BaseEvent {
     category: EventCategory.BUSINESS;
 }
+export interface OnboardingLocation {
+    latitude: number;
+    longitude: number;
+    city?: string;
+    country?: string;
+    region?: string;
+    ip?: string;
+}
+export interface OnboardingContext {
+    userId: string;
+    step: string;
+    location?: OnboardingLocation;
+    metadata?: Record<string, any>;
+}
+export interface OnboardingEvent extends BaseEvent {
+    category: EventCategory.ONBOARDING;
+    onboarding: OnboardingContext;
+}
 export interface CustomEvent extends BaseEvent {
     category: EventCategory.CUSTOM;
 }
-export type Event = HttpEvent | DatabaseEvent | CacheEvent | QueueEvent | ExternalApiEvent | ExceptionEvent | RuntimeEvent | BusinessEvent | CustomEvent;
+export type Event = HttpEvent | DatabaseEvent | CacheEvent | QueueEvent | ExternalApiEvent | ExceptionEvent | RuntimeEvent | BusinessEvent | OnboardingEvent | CustomEvent;
 export type PartialEvent<T extends Event = Event> = Omit<T, "version" | "timestamp" | "relationships" | "tenant"> & Partial<Pick<T, "version" | "timestamp" | "relationships" | "tenant">>;
 //# sourceMappingURL=types.d.ts.map

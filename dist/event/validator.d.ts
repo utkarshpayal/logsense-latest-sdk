@@ -12,6 +12,7 @@ export declare class EventValidator {
     private validateHttp;
     private validateDatabase;
     private validateException;
+    private validateOnboarding;
     assert(event: Event): void;
 }
 export declare const eventValidator: EventValidator;

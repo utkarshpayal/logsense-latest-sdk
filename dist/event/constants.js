@@ -16,6 +16,7 @@ var EventCategory;
     EventCategory["EXCEPTION"] = "exception";
     EventCategory["EXTERNAL"] = "external";
     EventCategory["BUSINESS"] = "business";
+    EventCategory["ONBOARDING"] = "onboarding";
     EventCategory["PAYMENT"] = "payment";
     EventCategory["DEPLOYMENT"] = "deployment";
     EventCategory["SECURITY"] = "security";

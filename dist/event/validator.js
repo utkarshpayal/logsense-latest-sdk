@@ -19,6 +19,9 @@ class EventValidator {
             case constants_1.EventCategory.EXCEPTION:
                 this.validateException(event, errors);
                 break;
+            case constants_1.EventCategory.ONBOARDING:
+                this.validateOnboarding(event, errors);
+                break;
             default:
                 break;
         }
@@ -108,6 +111,30 @@ class EventValidator {
         }
         if (!event.exception.message) {
             errors.push("exception.message is required");
+        }
+    }
+    // =====================================================
+    // Onboarding
+    // =====================================================
+    validateOnboarding(event, errors) {
+        if (!event.onboarding) {
+            errors.push("onboarding object is required");
+            return;
+        }
+        if (!event.onboarding.userId) {
+            errors.push("onboarding.userId is required");
+        }
+        if (!event.onboarding.step) {
+            errors.push("onboarding.step is required");
+        }
+        if (event.onboarding.location) {
+            const loc = event.onboarding.location;
+            if (typeof loc.latitude !== "number" || isNaN(loc.latitude)) {
+                errors.push("onboarding.location.latitude must be a number");
+            }
+            if (typeof loc.longitude !== "number" || isNaN(loc.longitude)) {
+                errors.push("onboarding.location.longitude must be a number");
+            }
         }
     }
     // =====================================================

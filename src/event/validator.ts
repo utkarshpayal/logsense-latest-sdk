@@ -3,6 +3,7 @@ import {
     Event,
     ExceptionEvent,
     HttpEvent,
+    OnboardingEvent,
 } from "./types";
 
 import { EventCategory } from "./constants";
@@ -32,6 +33,10 @@ export class EventValidator {
 
             case EventCategory.EXCEPTION:
                 this.validateException(event, errors);
+                break;
+
+            case EventCategory.ONBOARDING:
+                this.validateOnboarding(event as OnboardingEvent, errors);
                 break;
 
             default:
@@ -157,6 +162,38 @@ export class EventValidator {
 
         if (!event.exception.message) {
             errors.push("exception.message is required");
+        }
+    }
+
+    // =====================================================
+    // Onboarding
+    // =====================================================
+
+    private validateOnboarding(
+        event: OnboardingEvent,
+        errors: string[],
+    ) {
+        if (!event.onboarding) {
+            errors.push("onboarding object is required");
+            return;
+        }
+
+        if (!event.onboarding.userId) {
+            errors.push("onboarding.userId is required");
+        }
+
+        if (!event.onboarding.step) {
+            errors.push("onboarding.step is required");
+        }
+
+        if (event.onboarding.location) {
+            const loc = event.onboarding.location;
+            if (typeof loc.latitude !== "number" || isNaN(loc.latitude)) {
+                errors.push("onboarding.location.latitude must be a number");
+            }
+            if (typeof loc.longitude !== "number" || isNaN(loc.longitude)) {
+                errors.push("onboarding.location.longitude must be a number");
+            }
         }
     }
 
