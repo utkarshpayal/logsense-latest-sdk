@@ -40,6 +40,7 @@ export class BatchManager {
     private timer: NodeJS.Timeout | null = null;
 
     private flushing = false;
+    private currentFlushPromise: Promise<void> | null = null;
 
     constructor(options: BatchManagerOptions) {
         this.queue = options.queue;
@@ -90,6 +91,12 @@ export class BatchManager {
      */
     async flush(): Promise<void> {
         if (this.flushing) {
+            if (this.currentFlushPromise) {
+                await this.currentFlushPromise;
+            }
+            if (!this.queue.isEmpty()) {
+                return this.flush();
+            }
             return;
         }
 
@@ -98,71 +105,78 @@ export class BatchManager {
         }
 
         this.flushing = true;
+        this.currentFlushPromise = (async () => {
+            try {
+                const events = await this.queue.peek(this.maxBatchSize);
 
-        try {
-            const events = await this.queue.peek(this.maxBatchSize);
-
-            if (events.length === 0) {
-                return;
-            }
-
-            // execute beforeTransport hook
-            let currentEvents = [...events];
-            for (const plugin of this.plugins) {
-                if (plugin.beforeTransport) {
-                    try {
-                        const res = await plugin.beforeTransport(currentEvents);
-                        if (res) currentEvents = res;
-                    } catch (err) {
-                        if (plugin.onError) {
-                            await plugin.onError(err as Error, { stage: "beforeTransport", batch: currentEvents });
-                        }
-                    }
+                if (events.length === 0) {
+                    return;
                 }
-            }
 
-            const startTime = Date.now();
-            const result = await this.transport.sendBatch(currentEvents);
-            const latency = Date.now() - startTime;
-            metricsCollector.recordTransportLatency(latency);
-            metricsCollector.recordFlush(currentEvents.length);
-
-            // execute afterTransport hook
-            for (const plugin of this.plugins) {
-                if (plugin.afterTransport) {
-                    try {
-                        await plugin.afterTransport(currentEvents, result);
-                    } catch (err) {
-                        if (plugin.onError) {
-                            await plugin.onError(err as Error, { stage: "afterTransport", batch: currentEvents, result });
-                        }
-                    }
-                }
-            }
-
-            if (result.success) {
-                metricsCollector.recordTransportSuccess();
-                await this.queue.ack(events);
-            } else {
-                metricsCollector.recordTransportFailure();
+                // execute beforeTransport hook
+                let currentEvents = [...events];
                 for (const plugin of this.plugins) {
-                    if (plugin.onError) {
-                        await plugin.onError(result.error || new Error("Transport failed"), { stage: "transport", batch: currentEvents, result });
+                    if (plugin.beforeTransport) {
+                        try {
+                            const res = await plugin.beforeTransport(currentEvents);
+                            if (res) currentEvents = res;
+                        } catch (err) {
+                            if (plugin.onError) {
+                                await plugin.onError(err as Error, { stage: "beforeTransport", batch: currentEvents });
+                            }
+                        }
                     }
                 }
-                if (this.retryManager) {
-                    await this.queue.ack(events);
-                    await this.retryManager.schedule(events, result.statusCode, result.error);
-                } else {
-                    console.error(
-                        "[LogSense] Failed to send event batch. Events remain in queue.",
-                        result.error,
-                    );
+
+                const startTime = Date.now();
+                const result = await this.transport.sendBatch(currentEvents);
+                const latency = Date.now() - startTime;
+                metricsCollector.recordTransportLatency(latency);
+                metricsCollector.recordFlush(currentEvents.length);
+
+                // execute afterTransport hook
+                for (const plugin of this.plugins) {
+                    if (plugin.afterTransport) {
+                        try {
+                            await plugin.afterTransport(currentEvents, result);
+                        } catch (err) {
+                            if (plugin.onError) {
+                                await plugin.onError(err as Error, { stage: "afterTransport", batch: currentEvents, result });
+                            }
+                        }
+                    }
                 }
+
+                if (result.success) {
+                    metricsCollector.recordTransportSuccess();
+                    await this.queue.ack(events);
+                } else {
+                    metricsCollector.recordTransportFailure();
+                    for (const plugin of this.plugins) {
+                        if (plugin.onError) {
+                            await plugin.onError(result.error || new Error("Transport failed"), { stage: "transport", batch: currentEvents, result });
+                        }
+                    }
+                    if (this.retryManager) {
+                        await this.queue.ack(events);
+                        await this.retryManager.schedule(events, result.statusCode, result.error);
+                    } else {
+                        console.error(
+                            "[LogSense] Failed to send event batch. Events remain in queue.",
+                            result.error,
+                        );
+                    }
+                }
+            } catch (err) {
+                // Prevent crashes from pipeline failures
+                console.error("[LogSense] Error during batch flush:", err);
+            } finally {
+                this.flushing = false;
+                this.currentFlushPromise = null;
             }
-        } finally {
-            this.flushing = false;
-        }
+        })();
+
+        return this.currentFlushPromise;
     }
 
     /**

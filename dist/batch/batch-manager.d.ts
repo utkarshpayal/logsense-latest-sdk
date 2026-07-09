@@ -25,6 +25,7 @@ export declare class BatchManager {
     private readonly plugins;
     private timer;
     private flushing;
+    private currentFlushPromise;
     constructor(options: BatchManagerOptions);
     /**
      * Start automatic flushing.
