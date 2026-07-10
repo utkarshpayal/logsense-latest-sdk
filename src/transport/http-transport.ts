@@ -10,19 +10,14 @@ const gzipAsync = promisify(gzip);
 
 export interface HttpTransportOptions {
     endpoint: string;
-
     apiKey: string;
-
     timeout?: number;
 }
 
 export class HttpTransport implements EventTransport {
     private readonly endpoint: string;
-
     private readonly apiKey: string;
-
     private readonly timeout: number;
-
     constructor(options: HttpTransportOptions) {
         this.endpoint = options.endpoint;
         this.apiKey = options.apiKey;
@@ -40,6 +35,7 @@ export class HttpTransport implements EventTransport {
             }, this.timeout);
 
             const jsonBody = JSON.stringify({ events });
+            
             const headers: Record<string, string> = {
                 "Content-Type": "application/json",
                 Authorization: `Bearer ${this.apiKey}`,
@@ -69,13 +65,9 @@ export class HttpTransport implements EventTransport {
             if (!response.ok) {
                 return {
                     success: false,
-
                     accepted: 0,
-
                     failed: events.length,
-
                     statusCode: response.status,
-
                     error: new Error(
                         `Transport failed (${response.status})`,
                     ),
@@ -84,21 +76,15 @@ export class HttpTransport implements EventTransport {
 
             return {
                 success: true,
-
                 accepted: events.length,
-
                 failed: 0,
-
                 statusCode: response.status,
             };
         } catch (error) {
             return {
                 success: false,
-
                 accepted: 0,
-
                 failed: events.length,
-
                 error:
                     error instanceof Error
                         ? error

@@ -23,7 +23,9 @@ export declare class RetryManager {
     private retryCount;
     private activeRetryAttempts;
     private retryQueueSize;
+    private shutDown;
     constructor(options: RetryManagerOptions);
+    isShutDown(): boolean;
     /**
      * Determine if an HTTP status code or error is retryable.
      */

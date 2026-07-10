@@ -61,6 +61,7 @@ export class LogSenseClient {
                 queueDir: this.config.diskQueueDir,
                 maxSize: this.config.batchSize * 10, // queue limit
             });
+
             // Initialize disk queue synchronously via async promise hook (handling it gracefully)
             this.queue = diskQueue;
             void diskQueue.init().catch((err) => {
@@ -245,10 +246,7 @@ export class LogSenseClient {
         this.httpClientInstrumentation.unregister();
         this.httpServerInstrumentation.unregister();
 
-        // Flush and stop BatchManager (which closes transport)
-        await this.batchManager.shutdown();
-
-        // Shutdown RetryManager (cancels pending timers and retrieves aborted events)
+        // Shutdown RetryManager first (cancels pending timers and retrieves aborted events)
         const abortedEvents = await this.retryManager.shutdown();
         if (abortedEvents.length > 0) {
             if (this.config.debug) {
@@ -256,6 +254,9 @@ export class LogSenseClient {
             }
             await this.queue.enqueueMany(abortedEvents);
         }
+
+        // Flush and stop BatchManager last (which closes transport and flushes all events including aborted ones)
+        await this.batchManager.shutdown();
 
         if (this.config.debug) {
             console.log("[LogSense] SDK shutdown complete.");

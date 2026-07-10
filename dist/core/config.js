@@ -5,7 +5,7 @@ exports.buildConfig = buildConfig;
 exports.validateConfig = validateConfig;
 const constants_1 = require("../event/constants");
 exports.DEFAULT_CONFIG = {
-    endpoint: "https://api.logsense.com/v1/events",
+    endpoint: "https://logsense-server-2.onrender.com/v1/events",
     environment: constants_1.Environment.DEVELOPMENT,
     batchSize: 100,
     flushInterval: 5000,

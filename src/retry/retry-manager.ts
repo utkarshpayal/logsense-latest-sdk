@@ -27,6 +27,7 @@ export class RetryManager {
     private retryCount = 0;
     private activeRetryAttempts = 0;
     private retryQueueSize = 0;
+    private shutDown = false;
 
     constructor(options: RetryManagerOptions) {
         this.transport = options.transport;
@@ -35,6 +36,10 @@ export class RetryManager {
         this.maxAttempts = options.maxAttempts ?? 5;
         this.debug = options.debug ?? false;
         this.plugins = options.plugins ?? [];
+    }
+
+    isShutDown(): boolean {
+        return this.shutDown;
     }
 
     /**
@@ -60,7 +65,7 @@ export class RetryManager {
      * Schedule a batch of events for retry.
      */
     async schedule(events: Event[], statusCode?: number, error?: Error): Promise<void> {
-        if (events.length === 0) {
+        if (this.shutDown || events.length === 0) {
             return;
         }
 
@@ -185,6 +190,7 @@ export class RetryManager {
      * Any scheduled events that were not sent are stored in the DLQ.
      */
     async shutdown(): Promise<Event[]> {
+        this.shutDown = true;
         if (this.debug && this.pendingTimers.size > 0) {
             console.log(`[LogSense] Shutting down RetryManager. Cancelling ${this.pendingTimers.size} pending timers.`);
         }

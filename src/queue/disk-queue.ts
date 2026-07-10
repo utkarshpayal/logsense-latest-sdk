@@ -88,9 +88,7 @@ export class DiskQueue implements EventQueue {
     }
 
     async enqueueMany(events: Event[]): Promise<void> {
-        for (const event of events) {
-            await this.enqueue(event);
-        }
+        await Promise.all(events.map((event) => this.enqueue(event)));
     }
 
     async peek(limit?: number): Promise<Event[]> {

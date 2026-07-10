@@ -103,9 +103,7 @@ class DiskQueue {
         this.eventMap.set(eventId, filename);
     }
     async enqueueMany(events) {
-        for (const event of events) {
-            await this.enqueue(event);
-        }
+        await Promise.all(events.map((event) => this.enqueue(event)));
     }
     async peek(limit) {
         if (!this.initialized) {

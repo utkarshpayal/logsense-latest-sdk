@@ -21,6 +21,7 @@ function prismaLogSenseExtension(collector, provider = constants_1.DatabaseType.
                         ? {
                             traceId: activeCtx.traceId,
                             requestId: activeCtx.requestId,
+                            parentEventId: activeCtx.spanId || activeCtx.parentEventId,
                             ...(activeCtx.spanId ? { spanId: activeCtx.spanId } : {}),
                             ...(activeCtx.sessionId ? { sessionId: activeCtx.sessionId } : {}),
                         }
@@ -102,6 +103,7 @@ function mongooseLogSensePlugin(schema, options) {
             ? {
                 traceId: activeCtx.traceId,
                 requestId: activeCtx.requestId,
+                parentEventId: activeCtx.spanId || activeCtx.parentEventId,
                 ...(activeCtx.spanId ? { spanId: activeCtx.spanId } : {}),
                 ...(activeCtx.sessionId ? { sessionId: activeCtx.sessionId } : {}),
             }
@@ -134,6 +136,7 @@ function mongooseLogSensePlugin(schema, options) {
             ? {
                 traceId: activeCtx.traceId,
                 requestId: activeCtx.requestId,
+                parentEventId: activeCtx.spanId || activeCtx.parentEventId,
                 ...(activeCtx.spanId ? { spanId: activeCtx.spanId } : {}),
                 ...(activeCtx.sessionId ? { sessionId: activeCtx.sessionId } : {}),
             }
@@ -212,6 +215,7 @@ function wrapPg(pgClientOrPool, collector) {
             ? {
                 traceId: activeCtx.traceId,
                 requestId: activeCtx.requestId,
+                parentEventId: activeCtx.spanId || activeCtx.parentEventId,
                 ...(activeCtx.spanId ? { spanId: activeCtx.spanId } : {}),
                 ...(activeCtx.sessionId ? { sessionId: activeCtx.sessionId } : {}),
             }
@@ -283,6 +287,7 @@ function wrapMysql2(mysqlConnectionOrPool, collector) {
             ? {
                 traceId: activeCtx.traceId,
                 requestId: activeCtx.requestId,
+                parentEventId: activeCtx.spanId || activeCtx.parentEventId,
                 ...(activeCtx.spanId ? { spanId: activeCtx.spanId } : {}),
                 ...(activeCtx.sessionId ? { sessionId: activeCtx.sessionId } : {}),
             }

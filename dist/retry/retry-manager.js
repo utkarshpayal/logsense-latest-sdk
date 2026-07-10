@@ -14,6 +14,7 @@ class RetryManager {
     retryCount = 0;
     activeRetryAttempts = 0;
     retryQueueSize = 0;
+    shutDown = false;
     constructor(options) {
         this.transport = options.transport;
         this.backoffStrategy = options.backoffStrategy;
@@ -21,6 +22,9 @@ class RetryManager {
         this.maxAttempts = options.maxAttempts ?? 5;
         this.debug = options.debug ?? false;
         this.plugins = options.plugins ?? [];
+    }
+    isShutDown() {
+        return this.shutDown;
     }
     /**
      * Determine if an HTTP status code or error is retryable.
@@ -42,7 +46,7 @@ class RetryManager {
      * Schedule a batch of events for retry.
      */
     async schedule(events, statusCode, error) {
-        if (events.length === 0) {
+        if (this.shutDown || events.length === 0) {
             return;
         }
         const reason = error?.message || `HTTP Status ${statusCode || "unknown"}`;
@@ -158,6 +162,7 @@ class RetryManager {
      * Any scheduled events that were not sent are stored in the DLQ.
      */
     async shutdown() {
+        this.shutDown = true;
         if (this.debug && this.pendingTimers.size > 0) {
             console.log(`[LogSense] Shutting down RetryManager. Cancelling ${this.pendingTimers.size} pending timers.`);
         }

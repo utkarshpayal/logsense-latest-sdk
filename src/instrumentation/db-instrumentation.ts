@@ -18,6 +18,7 @@ export function prismaLogSenseExtension(collector: Collector, provider: Database
                         ? {
                               traceId: activeCtx.traceId,
                               requestId: activeCtx.requestId,
+                              parentEventId: activeCtx.spanId || activeCtx.parentEventId,
                               ...(activeCtx.spanId ? { spanId: activeCtx.spanId } : {}),
                               ...(activeCtx.sessionId ? { sessionId: activeCtx.sessionId } : {}),
                           }
@@ -104,6 +105,7 @@ export function mongooseLogSensePlugin(schema: any, options: { collector: Collec
             ? {
                   traceId: activeCtx.traceId,
                   requestId: activeCtx.requestId,
+                  parentEventId: activeCtx.spanId || activeCtx.parentEventId,
                   ...(activeCtx.spanId ? { spanId: activeCtx.spanId } : {}),
                   ...(activeCtx.sessionId ? { sessionId: activeCtx.sessionId } : {}),
               }
@@ -139,6 +141,7 @@ export function mongooseLogSensePlugin(schema: any, options: { collector: Collec
             ? {
                   traceId: activeCtx.traceId,
                   requestId: activeCtx.requestId,
+                  parentEventId: activeCtx.spanId || activeCtx.parentEventId,
                   ...(activeCtx.spanId ? { spanId: activeCtx.spanId } : {}),
                   ...(activeCtx.sessionId ? { sessionId: activeCtx.sessionId } : {}),
               }
@@ -223,6 +226,7 @@ export function wrapPg(pgClientOrPool: any, collector: Collector): void {
             ? {
                   traceId: activeCtx.traceId,
                   requestId: activeCtx.requestId,
+                  parentEventId: activeCtx.spanId || activeCtx.parentEventId,
                   ...(activeCtx.spanId ? { spanId: activeCtx.spanId } : {}),
                   ...(activeCtx.sessionId ? { sessionId: activeCtx.sessionId } : {}),
               }
@@ -303,6 +307,7 @@ export function wrapMysql2(mysqlConnectionOrPool: any, collector: Collector): vo
             ? {
                   traceId: activeCtx.traceId,
                   requestId: activeCtx.requestId,
+                  parentEventId: activeCtx.spanId || activeCtx.parentEventId,
                   ...(activeCtx.spanId ? { spanId: activeCtx.spanId } : {}),
                   ...(activeCtx.sessionId ? { sessionId: activeCtx.sessionId } : {}),
               }

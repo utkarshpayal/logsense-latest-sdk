@@ -120,6 +120,7 @@ class HttpClientInstrumentation {
                         ? {
                             traceId: activeCtx.traceId,
                             requestId: activeCtx.requestId,
+                            parentEventId: activeCtx.spanId || activeCtx.parentEventId,
                             ...(activeCtx.spanId ? { spanId: activeCtx.spanId } : {}),
                             ...(activeCtx.sessionId ? { sessionId: activeCtx.sessionId } : {}),
                         }

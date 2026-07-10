@@ -70,14 +70,18 @@ class HttpServerInstrumentation {
                     }
                 }
             }
-            // Safely capture headers
+            // Safely capture whitelisted headers to avoid bloat (no cookies, auth tokens, etc.)
+            const ALLOWED_HEADERS = ["host", "user-agent", "content-type", "accept", "referer", "x-request-id", "x-trace-id", "x-span-id", "x-correlation-id"];
             const requestHeaders = {};
             for (const [key, val] of Object.entries(req.headers)) {
-                if (typeof val === "string") {
-                    requestHeaders[key] = val;
-                }
-                else if (Array.isArray(val)) {
-                    requestHeaders[key] = val.join(", ");
+                const lowerKey = key.toLowerCase();
+                if (ALLOWED_HEADERS.includes(lowerKey)) {
+                    if (typeof val === "string") {
+                        requestHeaders[lowerKey] = val;
+                    }
+                    else if (Array.isArray(val)) {
+                        requestHeaders[lowerKey] = val.join(", ");
+                    }
                 }
             }
             // Initialize request context
@@ -129,7 +133,7 @@ class HttpServerInstrumentation {
                     const responseSize = responseSizeStr ? parseInt(String(responseSizeStr), 10) : undefined;
                     // Read route if set by a routing framework
                     const route = requestCtx.metadata["route"];
-                    // Safely capture request body
+                    // Safely capture request body (truncated to 1000 chars to save token space)
                     let body = undefined;
                     const anyReq = req;
                     if (anyReq.body !== undefined && anyReq.body !== null) {
@@ -140,12 +144,12 @@ class HttpServerInstrumentation {
                             body = "[Stream]";
                         }
                         else if (typeof anyReq.body === "string") {
-                            body = anyReq.body.length > 5000 ? anyReq.body.substring(0, 5000) + "... [truncated]" : anyReq.body;
+                            body = anyReq.body.length > 1000 ? anyReq.body.substring(0, 1000) + "... [truncated]" : anyReq.body;
                         }
                         else if (typeof anyReq.body === "object") {
                             try {
                                 const serialized = JSON.stringify(anyReq.body);
-                                if (serialized.length > 5000) {
+                                if (serialized.length > 1000) {
                                     body = `[Object too large to log, size: ${serialized.length} bytes]`;
                                 }
                                 else {

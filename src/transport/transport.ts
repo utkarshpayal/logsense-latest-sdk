@@ -2,13 +2,9 @@ import { Event } from "../event/types";
 
 export interface SendBatchResult {
     success: boolean;
-
     accepted: number;
-
     failed: number;
-
     statusCode?: number;
-
     error?: Error;
 }
 

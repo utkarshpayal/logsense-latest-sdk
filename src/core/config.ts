@@ -49,7 +49,7 @@ export interface SDKConfig {
 }
 
 export const DEFAULT_CONFIG = {
-    endpoint: "https://api.logsense.com/v1/events",
+    endpoint: "https://logsense-server-2.onrender.com/v1/events",
     environment: Environment.DEVELOPMENT,
     batchSize: 100,
     flushInterval: 5000,
@@ -115,8 +115,8 @@ export function buildConfig(userConfig?: SDKConfig): ResolvedSDKConfig {
         (env["NODE_ENV"] === "test"
             ? "testing"
             : env["NODE_ENV"] === "production"
-            ? "production"
-            : "development");
+                ? "production"
+                : "development");
 
     // 2. Setup Profile Defaults
     let profileRetry = {};
