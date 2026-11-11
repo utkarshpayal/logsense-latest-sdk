@@ -1,401 +1,200 @@
-# LogSense Node SDK Guide
+# LogSense Node.js SDK (`@utkarshpayal/logsense-sdk`)
 
-> Complete developer guide for integrating and using the LogSense SDK.
+Automatic observability for Node.js applications. The SDK collects structured events (logs, HTTP
+requests, outbound HTTP calls, exceptions, runtime metrics, database/cache operations and business
+events), runs them through a processing pipeline (enrichment, masking, fingerprinting, sampling) and
+ships them in batches to a LogSense server, with retries, an optional disk-backed queue and a dead-letter queue.
 
-## Table of Contents
+This is the v2 SDK (package version `2.0.5`). Detailed guides live in [`docs/`](docs/SUMMARY.md).
 
-1.  Introduction
-2.  Installation
-3.  Quick Start
-4.  SDK Initialization
-5.  Configuration Options
-6.  Automatic Logging
-7.  Manual Logging
-8.  Exception Logging
-9.  Request Context
-10. Child Loggers
-11. Middleware
-12. Structured Metadata
-13. Performance & Queueing
-14. Best Practices
-15. Common Patterns
-16. Troubleshooting
-17. Production Checklist
+---
 
-------------------------------------------------------------------------
+## Features
 
-# 1. Introduction
+- **Automatic instrumentation** (unless `disableInstrumentation` is set): incoming HTTP server requests, outbound HTTP client calls, uncaught exceptions / unhandled rejections, and periodic runtime (memory/CPU) metrics.
+- **Express middleware** (`@utkarshpayal/logsense-sdk/express`) that assigns a request ID (`X-Request-ID`), resolves a trace ID (`x-trace-id` header or the request ID), propagates context through `AsyncLocalStorage`, and logs unhandled route errors.
+- **Database / cache helpers**: `wrapPg`, `wrapMysql2`, `prismaLogSenseExtension`, `mongooseLogSensePlugin`, `wrapRedisClient`.
+- **Structured logger** with `trace`, `debug`, `info`, `warn`, `error`, `fatal`.
+- **Global API** (`logsense`) for exceptions, spans, user/organization identity, sessions, business and onboarding events, metrics and health.
+- **Pipeline processors**: enrichment (region, git SHA, deployment ID, release version), masking of sensitive keys, fingerprinting, and sampling (`fixed`, `adaptive`, `error-first`, `slow-first`). Custom processors and plugins can be registered with `use()`.
+- **Delivery**: batching, retry with `fixed` / `linear` / `exponential` / `jitter` backoff, optional disk queue, dead-letter queue, graceful shutdown.
+- **Profiles**: `development`, `production`, `testing`, `serverless` presets for retry, sampling, flush interval, disk queue and debug output.
+- `ProcessPlugin` for logging `SIGINT` / `SIGTERM` / `beforeExit`.
 
-LogSense is a production-ready logging SDK for Node.js that provides:
+## Installation
 
--   Structured JSON logging
--   Automatic request/response logging
--   Exception capture
--   Queueing
--   Batching
--   Retry with exponential backoff
--   Request correlation (requestId / traceId)
--   Middleware support
--   Dashboard integration
-
-------------------------------------------------------------------------
-
-# 2. Installation
-
-``` bash
+```bash
 npm i @utkarshpayal/logsense-sdk
 ```
 
-------------------------------------------------------------------------
+## Quick start
 
-# 3. Quick Start
-
-``` ts
-import { LogSense } from "@utkarshpayal/logsense-sdk";
-
-const logger = new LogSense({
-  apiKey: process.env.LOGSENSE_API_KEY!,
-  endpoint: "https://api.logsense.dev/logs",
-  service: "payment-api",
-  environment: "production",
-});
-```
-
-------------------------------------------------------------------------
-
-# 4. Configuration
-
-``` ts
-new LogSense({
-  apiKey: "...",
-  endpoint: "...",
-  service: "payment-api",
-  environment: "production",
-  version: "1.0.0",
-  batchSize: 100,
-  flushInterval: 5000,
-  timeout: 5000,
-  maxRetries: 5,
-  slowRequestThreshold: 300,
-  debug: false,
-});
-```
-
-  Option                 Description
-  ---------------------- --------------------------------
-  apiKey                 Project API key
-  endpoint               LogSense ingestion endpoint
-  service                Service name
-  environment            dev/staging/prod
-  version                Application version
-  batchSize              Logs per batch
-  flushInterval          Auto flush interval
-  timeout                HTTP timeout
-  maxRetries             Retry count
-  slowRequestThreshold   Slow request warning threshold
-  debug                  SDK debug mode
-
-------------------------------------------------------------------------
-
-# 5. Manual Logs
-
-``` ts
-logger.info("User logged in");
-logger.debug("Cache miss");
-logger.warn("Slow database query");
-logger.error("Payment failed");
-```
-
-With metadata:
-
-``` ts
-logger.info("Order created", {
-  orderId,
-  userId,
-  amount,
-});
-```
-
-------------------------------------------------------------------------
-
-# 6. Business Event Examples
-
-``` ts
-logger.info("User Registered", { userId });
-logger.info("Payment Started", { paymentId });
-logger.info("Payment Completed", { paymentId });
-logger.info("API Key Generated", { projectId });
-logger.info("Project Created", { projectId });
-```
-
-------------------------------------------------------------------------
-
-# 7. Exception Logging
-
-``` ts
-try {
-  // code
-} catch (error) {
-  logger.captureException(error);
-}
-```
-
-Captured fields:
-
--   Error name
--   Message
--   Stack
--   Fingerprint
--   Request ID
--   Trace ID
-
-------------------------------------------------------------------------
-
-# 8. Express Middleware
-
-``` ts
+```ts
+import express from "express";
+import { LogSense, logsense } from "@utkarshpayal/logsense-sdk";
 import { logsenseMiddleware } from "@utkarshpayal/logsense-sdk/express";
 
-const [logRequests, logErrors] = logsenseMiddleware(logger);
-
-app.use(logRequests);
-// Register routes here.
-app.use(logErrors);
-```
-
-Automatically logs:
-
--   Incoming request
--   Response
--   Status code
--   Duration
--   Slow requests
--   Route errors
--   requestId
--   traceId
-
-------------------------------------------------------------------------
-
-# 9. Automatically Captured Logs
-
-## Request
-
--   Method
--   URL
--   Route
--   Query
--   Params
--   IP
--   User-Agent
-
-## Response
-
--   Status
--   Duration
--   Content Length
-
-## Errors
-
--   Unhandled exceptions
--   Promise rejections
--   Route errors
-
-## Runtime
-
--   Startup
--   Shutdown
--   Memory
--   CPU
--   Health checks
-
-## Infrastructure
-
--   Queue flush
--   Retry attempts
--   Transport failures
-
-------------------------------------------------------------------------
-
-# 10. Child Logger
-
-``` ts
-const paymentLogger = logger.child({
-  module: "payment"
-});
-
-paymentLogger.info("Payment Started");
-```
-
-------------------------------------------------------------------------
-
-# 11. Request Context
-
-``` ts
-req.logger.info("User authenticated");
-```
-
-Automatically attaches:
-
--   requestId
--   traceId
--   route
--   method
--   service
-
-------------------------------------------------------------------------
-
-# 12. Queue & Retry
-
-Pipeline:
-
-    Application
-        ↓
-    Logger
-        ↓
-    Queue
-        ↓
-    Batch
-        ↓
-    Retry
-        ↓
-    Transport
-        ↓
-    LogSense Backend
-
-Benefits:
-
--   No log loss
--   Reduced HTTP calls
--   Background uploads
-
-------------------------------------------------------------------------
-
-# 13. Best Practices
-
--   Log business events manually.
--   Let middleware log infrastructure events.
--   Always include IDs (userId, orderId, projectId).
--   Avoid logging secrets.
--   Mask passwords and tokens.
--   Use child loggers for modules.
--   Keep metadata structured.
-
-------------------------------------------------------------------------
-
-# 14. Things to Avoid
-
--   Logging passwords
--   Logging JWT tokens
--   Logging credit card numbers
--   Logging entire request bodies in production
--   Logging large binary payloads
-
-------------------------------------------------------------------------
-
-# 15. Production Checklist
-
--   Enable batching
--   Enable retries
--   Configure timeouts
--   Configure slow request threshold
--   Use middleware
--   Capture exceptions
--   Use request correlation
--   Monitor queue size
--   Rotate API keys
-
-------------------------------------------------------------------------
-
-# 16. Example Project
-
-``` ts
-const logger = new LogSense({
+const client = new LogSense({
   apiKey: process.env.LOGSENSE_API_KEY!,
   service: "payment-api",
+  organizationId: process.env.LOGSENSE_ORGANIZATION_ID!,
+  projectId: process.env.LOGSENSE_PROJECT_ID!,
   environment: "production",
 });
 
-const [logRequests, logErrors] = logsenseMiddleware(logger);
+const app = express();
+const [logRequests, logErrors] = logsenseMiddleware(client, { slowThresholdMs: 500 });
+
 app.use(logRequests);
 
-app.post("/payments", async (req, res) => {
-  logger.info("Payment initiated", {
-    userId: req.user.id,
-    amount: req.body.amount,
-  });
-
+app.post("/payments", (req, res) => {
+  client.logger.info("Payment initiated", { requestId: req.logsense?.requestId });
   res.json({ success: true });
 });
 
 app.use(logErrors);
+app.listen(3000);
+
+// On shutdown
+process.on("SIGTERM", () => client.shutdown());
 ```
 
-------------------------------------------------------------------------
+`LogSense` is an alias of `LogSenseClient`. To use the global `logsense` API (`track`, `captureException`, `startSpan`, `identify`, `business.*`, …), initialise it with `logsense.init(config)`, which creates or returns a single global client.
 
-# 17. Typical Log Lifecycle
+`apiKey`, `service`, `organizationId` and `projectId` are required; the constructor throws if any is missing (from both the config object and the environment).
 
-    logger.info()
+## Usage
 
-    ↓
+### Logging
 
-    Event Builder
+```ts
+client.logger.info("User logged in", { userId });
+client.logger.warn("Slow database query", { ms: 812 });
+client.logger.error("Payment failed", err, { paymentId });   // error(message, error?, metadata?)
+```
 
-    ↓
+### Global API
 
-    Collector
+```ts
+logsense.init({ /* config */ });
 
-    ↓
+await logsense.captureException(new Error("boom"));
+logsense.setUser({ id: "u_123", role: "admin" });
+logsense.setOrganization("org_1");
+const span = logsense.startSpan("checkout");
 
-    Pipeline
+await logsense.trackBusinessEvent("Plan Upgraded", { plan: "pro" });
+await logsense.business.orderCreated("ord_1", 49.99, "USD");
+await logsense.business.paymentSucceeded("pay_1", 49.99, "USD");
+await logsense.onboarding.userOnboarded("u_123", "profile_completed");
 
-    ↓
+logsense.metrics();   // queue size, retries, failures, dropped events, batch size, latency
+logsense.health();
+await logsense.shutdown();
+```
 
-    Enrichment
+Other identity/session helpers: `identify`, `setWorkspace`, `clearIdentity`, `resetIdentity`, `currentSession`, `trackOnboarding`, `track`.
 
-    ↓
+### Database and cache instrumentation
 
-    Masking
+```ts
+import { wrapPg, wrapRedisClient } from "@utkarshpayal/logsense-sdk";
 
-    ↓
+wrapPg(pool, client.collector);
+wrapRedisClient(redis, client.collector);
+```
 
-    Fingerprint
+Also available: `wrapMysql2`, `prismaLogSenseExtension(collector)`, `mongooseLogSensePlugin`.
 
-    ↓
+### Plugins and processors
 
-    Queue
+```ts
+import { ProcessPlugin, SamplingProcessor } from "@utkarshpayal/logsense-sdk";
 
-    ↓
+client.use(myProcessor);   // any EventProcessor or LogSensePlugin
+```
 
-    Batch
+See [`docs/advanced/custom-plugins-and-processors.md`](docs/advanced/custom-plugins-and-processors.md).
 
-    ↓
+## Configuration
 
-    Retry
+Every option can be passed to the constructor; most can also come from environment variables. Precedence is: constructor option → environment variable → profile default → built-in default (`src/core/config.ts`).
 
-    ↓
+| Option | Environment variable | Default | Description |
+| --- | --- | --- | --- |
+| `apiKey` | `LOGSENSE_API_KEY` | — (required) | Project API key |
+| `service` | `LOGSENSE_SERVICE` | — (required) | Service name |
+| `organizationId` | `LOGSENSE_ORGANIZATION_ID` / `LOGSENSE_ORG_ID` | — (required) | Organization ID |
+| `projectId` | `LOGSENSE_PROJECT_ID` | — (required) | Project ID |
+| `endpoint` | `LOGSENSE_ENDPOINT` | Hosted LogSense `/v1/events` endpoint | Ingestion URL (point it at your own `logsense-server`) |
+| `environment` | `LOGSENSE_ENVIRONMENT`, then `NODE_ENV` | `development` | Environment name |
+| `serviceVersion` | `LOGSENSE_SERVICE_VERSION` | — | Service version |
+| `profile` | `LOGSENSE_PROFILE` (else derived from `NODE_ENV`) | `development` | `development` \| `production` \| `testing` \| `serverless` |
+| `batchSize` | `LOGSENSE_BATCH_SIZE` | `100` | Events per batch |
+| `flushInterval` | `LOGSENSE_FLUSH_INTERVAL` | `5000` ms | Flush interval |
+| `debug` | `LOGSENSE_DEBUG` | `false` | Print SDK debug output |
+| `diskQueueEnabled` | `LOGSENSE_DISK_QUEUE_ENABLED` | `false` (`true` in `production` profile) | Persist the queue to disk |
+| `diskQueueDir` | `LOGSENSE_DISK_QUEUE_DIR` | `.logsense/queue` | Disk queue directory |
+| `disableInstrumentation` | `LOGSENSE_DISABLE_INSTRUMENTATION` | `false` | Turn off automatic instrumentation |
+| `metricsIntervalMs` | `LOGSENSE_METRICS_INTERVAL` | `3600000` | Runtime metrics interval |
+| `retry` | — | `{ maxAttempts: 5, backoffType: "jitter", baseDelayMs: 1000, maxDelayMs: 30000 }` | Retry policy |
+| `sampling` | — | profile-dependent | `{ strategy, rate, minRate, maxRate, windowSizeMs, maxEventsPerWindow, slowThresholdMs }` |
+| `masking` | — | enabled; masks `password`, `token`, `cookie`, `authorization`, `apiKey`, `secret`, `passwd`, `access_token`, `client_secret` | `{ enabled, keys, patterns }` |
+| `plugins` | — | `[]` | Processors / plugins to register |
 
-    Transport
+The enrichment processor also reads `LOGSENSE_REGION` (or `AWS_REGION`), `LOGSENSE_GIT_SHA` (or `GIT_SHA`), `LOGSENSE_DEPLOYMENT_ID` (or `DEPLOYMENT_ID`) and `LOGSENSE_RELEASE_VERSION` (or `RELEASE_VERSION`).
 
-    ↓
+Express middleware options: `slowThresholdMs` (default `1000`) and `metadata` (merged into every middleware log entry).
 
-    LogSense Backend
+## Event pipeline
 
-    ↓
+```
+logger / instrumentation / global API
+  → EventBuilder → Collector
+  → Pipeline (enrichment → masking → fingerprint → sampling → custom processors)
+  → Queue (memory or disk) → BatchManager → RetryManager (→ DLQ) → HTTP transport
+  → LogSense server
+```
 
-    Dashboard
+See [`docs/architecture/logging-pipeline-and-context.md`](docs/architecture/logging-pipeline-and-context.md).
 
-------------------------------------------------------------------------
+## Development
 
-# 18. Future Integrations
+```bash
+npm install
+npm run build        # rimraf dist && tsc
+npm run typecheck    # tsc --noEmit
+npm test             # tsx tests/verification.ts
+npm run test:v1      # tsx tests/v1-features.ts
+npm run test:express # tsx tests/express-middleware.ts
+npm run demo         # tsx tests/demo-app.ts
+npm run simulate     # tsx tests/simulation.ts
+npm run dev          # tsx watch src/index.ts
+npm run clean        # rimraf dist
+```
 
--   Express
--   Fastify
--   NestJS
--   Axios
--   Fetch
--   PostgreSQL
--   MongoDB
--   Redis
--   BullMQ
--   Kafka
--   OpenTelemetry
+Only `dist/` is published (`files` in `package.json`). The `tests/` scripts are runnable verification/demo scripts rather than a test-runner suite.
+
+### Source layout
+
+```
+src/
+  core/            LogSenseClient, global `logsense` API, config resolution/validation
+  logger/          Structured logger
+  middleware/      Express middleware (exported as ./express)
+  instrumentation/ HTTP server/client, exceptions, runtime monitor, DB and Redis helpers
+  pipeline/        Pipeline, plugin/processor interfaces, built-in processors
+  event/           Event types, builder, factory, validator
+  queue/           Memory and disk queues
+  batch/ retry/ transport/   Delivery (batching, backoff, DLQ, HTTP)
+  context/ tracing/ session/ breadcrumbs/ fingerprinting/ monitoring/ entities/ plugins/ utils/
+docs/              Full documentation (see docs/SUMMARY.md)
+```
+
+## Best practices
+
+- Log business events explicitly; let instrumentation handle infrastructure events.
+- Include identifiers (userId, orderId, projectId) in metadata and keep it structured.
+- Never log passwords, tokens or card numbers; extend `masking.keys` for your own sensitive fields.
+- Call `shutdown()` on exit so queued events are flushed.
+- Use the `production` profile (adaptive sampling, disk queue) in production.
